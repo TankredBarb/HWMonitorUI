@@ -5,11 +5,19 @@ import QtQuick.Layouts 1.15
 
 Window {
     id: mainWindow
-    width: 380
-    height: 580
     visible: true
     title: "Qt Hardware Monitor"
     color: "#E8E8E8"
+
+    // Dynamic size based on connection state - use fixed values to prevent flickering
+    width: 380
+    height: 580
+
+    // Store previous state to prevent flickering
+    property int prevState: -1
+    onConnectionStateChanged: {
+        prevState = connectionState
+    }
 
     property var hardwareInfo: ({})
     property var sensors: []
@@ -38,14 +46,15 @@ Window {
         anchors.margins: 16
         spacing: 16
 
-        // --- Header Section ---
+        // --- Header Section (only visible when connected) ---
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 90
+            implicitHeight: 90
             color: "#FFFFFF"
             radius: 16
             border.color: "#D0D0D0"
             border.width: 1
+            visible: connectionState === 2
 
             ColumnLayout {
                 anchors.fill: parent
@@ -76,150 +85,165 @@ Window {
             }
         }
 
-        // --- Sensors List ---
-        ColumnLayout {
+        // --- Sensors List (only visible when connected) ---
+        ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            clip: true
+            visible: connectionState === 2
+            ScrollBar.vertical.policy: ScrollBar.AsNeeded
+            implicitHeight: connectionState === 2 ? parent.height - 180 : 0
 
-            Repeater {
-                model: sensors
+            ColumnLayout {
+                width: parent.width
+                spacing: 12
+                Layout.fillWidth: true
 
-                delegate: Rectangle {
-                    id: card
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 80
-                    color: "#FFFFFF"
-                    radius: 16
-                    border.color: "#D0D0D0"
-                    border.width: 1
+                Repeater {
+                    model: sensors
 
-                    MouseArea {
-                        id: mouseArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                    }
+                    delegate: Rectangle {
+                        id: card
+                        Layout.fillWidth: true
+                        implicitHeight: 80
+                        color: "#FFFFFF"
+                        radius: 16
+                        border.color: "#D0D0D0"
+                        border.width: 1
 
-                    scale: mouseArea.containsMouse ? 1.01 : 1.0
-                    Behavior on scale {
-                        NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
-                    }
-                    Behavior on border.color {
-                        ColorAnimation { duration: 150 }
-                    }
+                        MouseArea {
+                            id: mouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                        }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 20
-                        anchors.rightMargin: 20
-                        spacing: 15
+                        scale: mouseArea.containsMouse ? 1.01 : 1.0
+                        Behavior on scale {
+                            NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+                        }
+                        Behavior on border.color {
+                            ColorAnimation { duration: 150 }
+                        }
 
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: 2
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 20
+                            anchors.rightMargin: 20
+                            spacing: 15
 
-                            RowLayout {
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 10
+                                Layout.fillHeight: true
+                                spacing: 2
 
-                                Text {
-                                    text: modelData.type === "Temperature" ? "🌡️" : "⚡"
-                                    font.pixelSize: 20
-                                }
-
-                                Text {
-                                    text: modelData.name
-                                    font.family: "Segoe UI"
-                                    font.pixelSize: 14
-                                    color: "#1A1A1A"
-                                    font.weight: Font.Medium
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                }
-                            }
+                                    spacing: 10
 
-                            Text {
-                                text: Number(modelData.value).toFixed(1) + " " + modelData.unit
-                                font.family: "Segoe UI"
-                                font.pixelSize: 28
-                                font.weight: Font.Bold
-                                color: {
-                                    if (modelData.type === "Temperature") {
-                                        if (modelData.value > 85) return "#D32F2F";
-                                        if (modelData.value > 70) return "#F57C00";
-                                        return "#388E3C";
+                                    Text {
+                                        text: modelData.type === "Temperature" ? "🌡️" : "⚡"
+                                        font.pixelSize: 20
                                     }
-                                    return "#1976D2";
+
+                                    Text {
+                                        text: modelData.name
+                                        font.family: "Segoe UI"
+                                        font.pixelSize: 14
+                                        color: "#1A1A1A"
+                                        font.weight: Font.Medium
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Text {
+                                    text: Number(modelData.value).toFixed(1) + " " + modelData.unit
+                                    font.family: "Segoe UI"
+                                    font.pixelSize: 28
+                                    font.weight: Font.Bold
+                                    color: {
+                                        if (modelData.type === "Temperature") {
+                                            if (modelData.value > 85) return "#D32F2F";
+                                            if (modelData.value > 70) return "#F57C00";
+                                            return "#388E3C";
+                                        }
+                                        return "#1976D2";
+                                    }
                                 }
                             }
-                        }
 
-                        Canvas {
-                            id: gauge
-                            Layout.preferredWidth: 60
-                            Layout.preferredHeight: 60
-                            Layout.alignment: Qt.AlignVCenter
-                            visible: modelData.type === "Temperature"
-                            antialiasing: true
+                            Canvas {
+                                id: gauge
+                                Layout.preferredWidth: 60
+                                Layout.preferredHeight: 60
+                                Layout.alignment: Qt.AlignVCenter
+                                visible: modelData.type === "Temperature"
+                                antialiasing: true
 
-                            property real val: modelData.value || 0
-                            property real maxVal: 100
+                                property real val: modelData.value || 0
+                                property real maxVal: 100
 
-                            onValChanged: requestPaint()
+                                onValChanged: requestPaint()
 
-                            onPaint: {
-                                var ctx = getContext("2d");
-                                ctx.reset();
+                                onPaint: {
+                                    var ctx = getContext("2d");
+                                    ctx.reset();
 
-                                var w = width;
-                                var h = height;
-                                var cx = w / 2;
-                                var cy = h / 2;
-                                var r = Math.min(w, h) / 2 - 6;
+                                    var w = width;
+                                    var h = height;
+                                    var cx = w / 2;
+                                    var cy = h / 2;
+                                    var r = Math.min(w, h) / 2 - 6;
 
-                                var activeColor = "#388E3C";
-                                if (val > 85) activeColor = "#D32F2F";
-                                else if (val > 70) activeColor = "#F57C00";
+                                    var activeColor = "#388E3C";
+                                    if (val > 85) activeColor = "#D32F2F";
+                                    else if (val > 70) activeColor = "#F57C00";
 
-                                ctx.beginPath();
-                                ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.25);
-                                ctx.lineWidth = 6;
-                                ctx.strokeStyle = "#E0E0E0";
-                                ctx.lineCap = "round";
-                                ctx.stroke();
+                                    ctx.beginPath();
+                                    ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.25);
+                                    ctx.lineWidth = 6;
+                                    ctx.strokeStyle = "#E0E0E0";
+                                    ctx.lineCap = "round";
+                                    ctx.stroke();
 
-                                var progress = Math.min(val / maxVal, 1.0);
-                                var endAngle = Math.PI * 0.75 + (Math.PI * 1.5 * progress);
+                                    var progress = Math.min(val / maxVal, 1.0);
+                                    var endAngle = Math.PI * 0.75 + (Math.PI * 1.5 * progress);
 
-                                ctx.beginPath();
-                                ctx.arc(cx, cy, r, Math.PI * 0.75, endAngle);
-                                ctx.lineWidth = 6;
-                                ctx.strokeStyle = activeColor;
-                                ctx.lineCap = "round";
-                                ctx.stroke();
+                                    ctx.beginPath();
+                                    ctx.arc(cx, cy, r, Math.PI * 0.75, endAngle);
+                                    ctx.lineWidth = 6;
+                                    ctx.strokeStyle = activeColor;
+                                    ctx.lineCap = "round";
+                                    ctx.stroke();
+                                }
                             }
                         }
                     }
                 }
-            }
-
-            Text {
-                Layout.alignment: Qt.AlignCenter
-                text: {
-                    if (connectionState === 3) return "Connection Error - hwmonitor may not be running";
-                    if (connectionState === 0) return "Disconnected - Click Reconnect to try again";
-                    if (connectionState === 1) return "Connecting...";
-                    return sensors.length === 0 ? "Waiting for data..." : "";
-                }
-                color: connectionState === 3 ? "#F44336" : (connectionState === 0 ? "#9E9E9E" : "#999999")
-                font.pixelSize: 16
-                visible: sensors.length === 0 || connectionState === 0 || connectionState === 1 || connectionState === 3
             }
         }
 
-        // Connection Status Indicator (bottom right)
+        // Status message for non-connected states
+        Text {
+            Layout.alignment: Qt.AlignCenter
+            Layout.fillWidth: true
+            text: {
+                if (connectionState === 3) return "Connection Error - hwmonitor may not be running";
+                if (connectionState === 0) return "Disconnected - Click Reconnect to try again";
+                if (connectionState === 1) return "Connecting...";
+                return "";
+            }
+            color: connectionState === 3 ? "#F44336" : (connectionState === 0 ? "#9E9E9E" : "#FFA000")
+            font.pixelSize: 14
+            font.weight: Font.Medium
+            visible: connectionState !== 2
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            Layout.preferredHeight: connectionState !== 2 ? implicitHeight : 0
+        }
+
+        // Connection Status Indicator and Reconnect button (bottom)
         RowLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignBottom
@@ -230,6 +254,7 @@ Window {
             }
 
             Rectangle {
+                id: connectionIndicator
                 implicitWidth: 10
                 implicitHeight: 10
                 radius: 5
@@ -239,6 +264,7 @@ Window {
                     if (connectionState === 2) return "#4CAF50"; // Connected - Green
                     return "#F44336"; // Error - Red
                 }
+                visible: connectionState === 2
             }
 
             Text {
@@ -253,6 +279,7 @@ Window {
                 }
                 font.weight: Font.Bold
                 Layout.alignment: Qt.AlignVCenter
+                visible: connectionState === 2
             }
 
             // Reconnect button (visible only on error or disconnected)
@@ -278,6 +305,12 @@ Window {
                     mainWindow.reconnect();
                 }
             }
+        }
+
+        // Invisible spacer to fill remaining space when connected
+        Item {
+            Layout.fillHeight: true
+            visible: connectionState === 2
         }
     }
 }

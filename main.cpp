@@ -27,9 +27,6 @@ QVariantMap sensorToMap(const SensorData &s)
 
 int main(int argc, char *argv[])
 {
-    // High DPI scaling support
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-
     QGuiApplication app(argc, argv);
     app.setApplicationName("QtHwMonitor");
     app.setWindowIcon(QIcon(":/hwmon.png"));
@@ -89,10 +86,19 @@ int main(int argc, char *argv[])
         qCritical() << "[ERROR]" << err;
     });
 
-    // Connect Connection State Changed -> Update QML and expose reconnect method
-    QObject::connect(provider, &ISensorProvider::connectionStateChanged, [rootObject](ISensorProvider::ConnectionState state)
+    // Setup Timer for Live Updates (every 2 seconds)
+    QTimer *timer = new QTimer(&app);
+    timer->setInterval(2000); // 2000 ms = 2 seconds
+
+    // Connect Timer Timeout -> Fetch Data
+    QObject::connect(timer, &QTimer::timeout, provider, &ISensorProvider::fetchData);
+
+    // Connect Connection State Changed -> Control Timer and Update QML
+    QObject::connect(provider, &ISensorProvider::connectionStateChanged, [rootObject, timer](ISensorProvider::ConnectionState state)
     {
         if (!rootObject) return;
+
+        // Update QML property
         rootObject->setProperty("connectionState", static_cast<int>(state));
 
         // Update status text based on state
@@ -101,15 +107,19 @@ int main(int argc, char *argv[])
         {
             case ISensorProvider::ConnectionState::Disconnected:
                 statusText = "Disconnected";
+                timer->stop(); // STOP updates when disconnected
                 break;
             case ISensorProvider::ConnectionState::Connecting:
                 statusText = "Connecting...";
-                break;
-            case ISensorProvider::ConnectionState::Connected:
-                statusText = "Connected";
+                timer->stop(); // Stop updates while connecting
                 break;
             case ISensorProvider::ConnectionState::Error:
                 statusText = "Connection Error";
+                timer->stop(); // STOP updates on error
+                break;
+            case ISensorProvider::ConnectionState::Connected:
+                statusText = "Connected";
+                timer->start(); // START updates only when connected
                 break;
         }
         rootObject->setProperty("connectionStatusText", statusText);
@@ -118,17 +128,11 @@ int main(int argc, char *argv[])
     // Expose provider's reconnect method to QML
     QObject::connect(rootObject, SIGNAL(reconnectClicked()), provider, SLOT(reconnect()));
 
-    // Setup Timer for Live Updates (every 2 seconds)
-    QTimer *timer = new QTimer(&app);
-    timer->setInterval(2000); // 2000 ms = 2 seconds
-
-    QObject::connect(timer, &QTimer::timeout, provider, &ISensorProvider::fetchData);
-
-    // Start the timer
-    timer->start();
-
-    // Initial fetch immediately so we don't wait 2 seconds for first data
+    // Initial fetch immediately to attempt connection
     provider->fetchData();
+
+    // Note: The timer will automatically start only when the first "Connected" state is received.
+    // If the initial fetch fails, the timer remains stopped until user clicks reconnect.
 
     return app.exec();
 }
