@@ -208,6 +208,7 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
         {
             double value = parseValue(rawValue);
             qDebug() << "[NEW SENSOR] CPU Package Power:" << value << "W" << "Device:" << activeDevName;
+            out.append({activeDevId, "CPU Package", "Power", "Power", value, "W"});
         }
 
         // 2. CPU Total Load
@@ -215,6 +216,7 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
         {
             double value = parseValue(rawValue);
             qDebug() << "[NEW SENSOR] CPU Load Total:" << value << "%" << "Device:" << activeDevName;
+            out.append({activeDevId, "CPU Total", "Load", "Load", value, "%"});
         }
 
         // 3. GPU Package Power
@@ -222,6 +224,7 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
         {
             double value = parseValue(rawValue);
             qDebug() << "[NEW SENSOR] GPU Package Power:" << value << "W" << "Device:" << activeDevName;
+            out.append({activeDevId, "GPU Package", "Power", "Power", value, "W"});
         }
 
         // 4. Memory Load (ONLY from "Total Memory")
@@ -234,6 +237,7 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
             {
                 double value = parseValue(rawValue);
                 qDebug() << "[NEW SENSOR] Memory Load:" << value << "%" << "Device:" << activeDevName;
+                out.append({activeDevId, "Memory", "Load", "Load", value, "%"});
             }
             // else {
             //     qDebug() << "[SKIP] Memory Load skipped because rootRamName is '" << activeRamSectionName << "'";

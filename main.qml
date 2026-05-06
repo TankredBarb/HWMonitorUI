@@ -85,7 +85,7 @@ Window {
             }
         }
 
-        // --- Sensors List (only visible when connected) ---
+        // --- Sensors Grid (only visible when connected) ---
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -94,9 +94,11 @@ Window {
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
             implicitHeight: connectionState === 2 ? parent.height - 180 : 0
 
-            ColumnLayout {
+            GridLayout {
                 width: parent.width
-                spacing: 12
+                columns: 2
+                rowSpacing: 10
+                columnSpacing: 10
                 Layout.fillWidth: true
 
                 Repeater {
@@ -104,8 +106,9 @@ Window {
 
                     delegate: Rectangle {
                         id: card
-                        Layout.fillWidth: true
-                        implicitHeight: 80
+                        Layout.preferredWidth: 170
+                        Layout.preferredHeight: 75
+                        Layout.minimumWidth: 80
                         color: "#FFFFFF"
                         radius: 16
                         border.color: "#D0D0D0"
@@ -128,28 +131,33 @@ Window {
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 20
-                            anchors.rightMargin: 20
-                            spacing: 15
+                            anchors.leftMargin: 18
+                            anchors.rightMargin: 18
+                            spacing: 12
 
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                spacing: 2
+                                spacing: 4
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    spacing: 10
+                                    spacing: 6
 
                                     Text {
-                                        text: modelData.type === "Temperature" ? "🌡️" : "⚡"
-                                        font.pixelSize: 20
+                                        text: {
+                                            if (modelData.type === "Temperature") return "🌡️";
+                                            if (modelData.type === "Power") return "⚡";
+                                            if (modelData.type === "Load") return "📊";
+                                            return "⚡";
+                                        }
+                                        font.pixelSize: 16
                                     }
 
                                     Text {
                                         text: modelData.name
                                         font.family: "Segoe UI"
-                                        font.pixelSize: 14
+                                        font.pixelSize: 11
                                         color: "#1A1A1A"
                                         font.weight: Font.Medium
                                         Layout.fillWidth: true
@@ -160,10 +168,10 @@ Window {
                                 Text {
                                     text: Number(modelData.value).toFixed(1) + " " + modelData.unit
                                     font.family: "Segoe UI"
-                                    font.pixelSize: 28
+                                    font.pixelSize: 20
                                     font.weight: Font.Bold
                                     color: {
-                                        if (modelData.type === "Temperature") {
+                                        if (modelData.type === "Temperature" || modelData.type === "Load") {
                                             if (modelData.value > 85) return "#D32F2F";
                                             if (modelData.value > 70) return "#F57C00";
                                             return "#388E3C";
@@ -175,14 +183,14 @@ Window {
 
                             Canvas {
                                 id: gauge
-                                Layout.preferredWidth: 60
-                                Layout.preferredHeight: 60
+                                Layout.preferredWidth: 55
+                                Layout.preferredHeight: 55
                                 Layout.alignment: Qt.AlignVCenter
-                                visible: modelData.type === "Temperature"
+                                visible: modelData.type === "Temperature" || modelData.type === "Load"
                                 antialiasing: true
 
                                 property real val: modelData.value || 0
-                                property real maxVal: 100
+                                property real maxVal: modelData.type === "Temperature" ? 100 : 100
 
                                 onValChanged: requestPaint()
 
@@ -194,7 +202,7 @@ Window {
                                     var h = height;
                                     var cx = w / 2;
                                     var cy = h / 2;
-                                    var r = Math.min(w, h) / 2 - 6;
+                                    var r = Math.min(w, h) / 2 - 5;
 
                                     var activeColor = "#388E3C";
                                     if (val > 85) activeColor = "#D32F2F";
