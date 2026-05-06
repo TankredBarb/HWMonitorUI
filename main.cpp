@@ -89,6 +89,35 @@ int main(int argc, char *argv[])
         qCritical() << "[ERROR]" << err;
     });
 
+    // Connect Connection State Changed -> Update QML and expose reconnect method
+    QObject::connect(provider, &ISensorProvider::connectionStateChanged, [rootObject](ISensorProvider::ConnectionState state)
+    {
+        if (!rootObject) return;
+        rootObject->setProperty("connectionState", static_cast<int>(state));
+
+        // Update status text based on state
+        QString statusText;
+        switch (state)
+        {
+            case ISensorProvider::ConnectionState::Disconnected:
+                statusText = "Disconnected";
+                break;
+            case ISensorProvider::ConnectionState::Connecting:
+                statusText = "Connecting...";
+                break;
+            case ISensorProvider::ConnectionState::Connected:
+                statusText = "Connected";
+                break;
+            case ISensorProvider::ConnectionState::Error:
+                statusText = "Connection Error";
+                break;
+        }
+        rootObject->setProperty("connectionStatusText", statusText);
+    });
+
+    // Expose provider's reconnect method to QML
+    QObject::connect(rootObject, SIGNAL(reconnectClicked()), provider, SLOT(reconnect()));
+
     // Setup Timer for Live Updates (every 2 seconds)
     QTimer *timer = new QTimer(&app);
     timer->setInterval(2000); // 2000 ms = 2 seconds

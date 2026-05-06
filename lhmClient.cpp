@@ -5,18 +5,38 @@
 #include <QJsonArray>
 #include <QRegularExpression>
 #include <QDebug>
+#include <QTimer>
 
 LhmClient::LhmClient(QObject *parent) : ISensorProvider(parent)
 {
     connect(&m_networkManager, &QNetworkAccessManager::finished,
             this, &LhmClient::onNetworkReply);
+    updateConnectionState(ConnectionState::Disconnected);
 }
 
 void LhmClient::fetchData()
 {
+    updateConnectionState(ConnectionState::Connecting);
     QNetworkRequest request(QUrl("http://127.0.0.1:8085/data.json"));
     request.setHeader(QNetworkRequest::UserAgentHeader, "QtHwMonitor/1.0");
     m_networkManager.get(request);
+}
+
+void LhmClient::reconnect()
+{
+    m_retryCount = 0;
+    m_networkManager.clearAccessCache();
+    updateConnectionState(ConnectionState::Connecting);
+    fetchData();
+}
+
+void LhmClient::updateConnectionState(ConnectionState newState)
+{
+    if (m_connectionState != newState)
+    {
+        m_connectionState = newState;
+        emit connectionStateChanged(newState);
+    }
 }
 
 void LhmClient::onNetworkReply(QNetworkReply *reply)
@@ -28,10 +48,42 @@ void LhmClient::onNetworkReply(QNetworkReply *reply)
 
     if (reply->error() != QNetworkReply::NoError)
     {
-        emit error(reply->errorString());
+        m_retryCount++;
+
+        // Check if hwmon is not running (connection refused)
+        if (reply->error() == QNetworkReply::ConnectionRefusedError)
+        {
+            updateConnectionState(ConnectionState::Error);
+            emit error("Hardware Monitor service is not running. Please start hwmonitor and try again.");
+        }
+        else if (reply->error() == QNetworkReply::TimeoutError)
+        {
+            updateConnectionState(ConnectionState::Error);
+            emit error("Connection timeout. Please check your network settings.");
+        }
+        else
+        {
+            updateConnectionState(ConnectionState::Error);
+            emit error(reply->errorString());
+        }
+
+        // Auto-retry logic
+        if (m_retryCount < MAX_RETRIES)
+        {
+            QTimer::singleShot(3000, this, [this]() {
+                QNetworkRequest request(QUrl("http://127.0.0.1:8085/data.json"));
+                request.setHeader(QNetworkRequest::UserAgentHeader, "QtHwMonitor/1.0");
+                m_networkManager.get(request);
+            });
+        }
+
         reply->deleteLater();
         return;
     }
+
+    // Success - reset retry count and update state
+    m_retryCount = 0;
+    updateConnectionState(ConnectionState::Connected);
 
     parseJson(reply->readAll());
     reply->deleteLater();

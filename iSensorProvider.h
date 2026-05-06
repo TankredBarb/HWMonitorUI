@@ -30,8 +30,13 @@ public:
     virtual ~ISensorProvider() = default;
 
     virtual void fetchData() = 0;
+    virtual void reconnect() {}
+
+    enum class ConnectionState { Disconnected, Connecting, Connected, Error };
+    Q_ENUM(ConnectionState)
 
 signals:
     void dataReady(const HardwareInfo &hardware, const QList<SensorData> &sensors);
     void error(const QString &message);
+    void connectionStateChanged(ConnectionState state);
 };

@@ -1,6 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Window 2.15
-import QtQuick.Controls 2.15
+import QtQuick.Controls.Basic 2.15
 import QtQuick.Layouts 1.15
 
 Window {
@@ -13,6 +13,25 @@ Window {
 
     property var hardwareInfo: ({})
     property var sensors: []
+    property int connectionState: 0 // 0=Disconnected, 1=Connecting, 2=Connected, 3=Error
+    property string connectionStatusText: "Disconnected"
+
+    function updateConnectionState(state) {
+        connectionState = state;
+        switch(state) {
+            case 0: connectionStatusText = "Disconnected"; break;
+            case 1: connectionStatusText = "Connecting..."; break;
+            case 2: connectionStatusText = "Connected"; break;
+            case 3: connectionStatusText = "Connection Error"; break;
+        }
+    }
+
+    function reconnect() {
+        console.log("Reconnecting...");
+        reconnectClicked();
+    }
+
+    signal reconnectClicked()
 
     ColumnLayout {
         anchors.fill: parent
@@ -50,6 +69,68 @@ Window {
                         Text { text: "CPU: " + (hardwareInfo.cpu || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
                         Text { text: "GPU: " + (hardwareInfo.gpu || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
                         Text { text: "MB:  " + (hardwareInfo.mb || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
+                    }
+                }
+
+                // Connection Status Indicator
+                RowLayout {
+                    spacing: 8
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 8
+                    Layout.fillWidth: true
+
+                    Rectangle {
+                        implicitWidth: 10
+                        implicitHeight: 10
+                        radius: 5
+                        color: {
+                            if (connectionState === 0) return "#9E9E9E"; // Disconnected - Gray
+                            if (connectionState === 1) return "#FFA000"; // Connecting - Orange
+                            if (connectionState === 2) return "#4CAF50"; // Connected - Green
+                            return "#F44336"; // Error - Red
+                        }
+                    }
+
+                    Text {
+                        text: connectionStatusText
+                        font.family: "Segoe UI"
+                        font.pixelSize: 12
+                        color: {
+                            if (connectionState === 0) return "#9E9E9E";
+                            if (connectionState === 1) return "#FFA000";
+                            if (connectionState === 2) return "#4CAF50";
+                            return "#F44336";
+                        }
+                        font.weight: Font.Medium
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    // Reconnect button (visible only on error or disconnected)
+                    Button {
+                        visible: connectionState === 0 || connectionState === 3
+                        text: "Reconnect"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 11
+                        Layout.alignment: Qt.AlignVCenter
+                        background: Rectangle {
+                            color: parent.pressed ? "#1565C0" : "#1976D2"
+                            radius: 4
+                            implicitWidth: 70
+                            implicitHeight: 24
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#FFFFFF"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        onClicked: {
+                            mainWindow.reconnect();
+                        }
                     }
                 }
             }
@@ -186,10 +267,15 @@ Window {
 
             Text {
                 Layout.alignment: Qt.AlignCenter
-                text: sensors.length === 0 ? "Waiting for data..." : ""
-                color: "#999999"
+                text: {
+                    if (connectionState === 3) return "Connection Error - hwmonitor may not be running";
+                    if (connectionState === 0) return "Disconnected - Click Reconnect to try again";
+                    if (connectionState === 1) return "Connecting...";
+                    return sensors.length === 0 ? "Waiting for data..." : "";
+                }
+                color: connectionState === 3 ? "#F44336" : (connectionState === 0 ? "#9E9E9E" : "#999999")
                 font.pixelSize: 16
-                visible: sensors.length === 0
+                visible: sensors.length === 0 || connectionState === 0 || connectionState === 1 || connectionState === 3
             }
         }
     }
