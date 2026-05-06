@@ -5,8 +5,8 @@ import QtQuick.Layouts 1.15
 
 Window {
     id: mainWindow
-    width: 450
-    height: 550
+    width: 380
+    height: 580
     visible: true
     title: "Qt Hardware Monitor"
     color: "#E8E8E8"
@@ -48,8 +48,9 @@ Window {
             border.width: 1
 
             ColumnLayout {
-                anchors.centerIn: parent
-                spacing: 4
+                anchors.fill: parent
+                anchors.margins: 2
+                spacing: 1
 
                 Text {
                     text: "HARDWARE MONITOR"
@@ -63,74 +64,13 @@ Window {
                 RowLayout {
                     spacing: 20
                     Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 2
 
                     ColumnLayout {
                         spacing: 0
                         Text { text: "CPU: " + (hardwareInfo.cpu || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
                         Text { text: "GPU: " + (hardwareInfo.gpu || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
                         Text { text: "MB:  " + (hardwareInfo.mb || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
-                    }
-                }
-
-                // Connection Status Indicator
-                RowLayout {
-                    spacing: 8
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 8
-                    Layout.fillWidth: true
-
-                    Rectangle {
-                        implicitWidth: 10
-                        implicitHeight: 10
-                        radius: 5
-                        color: {
-                            if (connectionState === 0) return "#9E9E9E"; // Disconnected - Gray
-                            if (connectionState === 1) return "#FFA000"; // Connecting - Orange
-                            if (connectionState === 2) return "#4CAF50"; // Connected - Green
-                            return "#F44336"; // Error - Red
-                        }
-                    }
-
-                    Text {
-                        text: connectionStatusText
-                        font.family: "Segoe UI"
-                        font.pixelSize: 12
-                        color: {
-                            if (connectionState === 0) return "#9E9E9E";
-                            if (connectionState === 1) return "#FFA000";
-                            if (connectionState === 2) return "#4CAF50";
-                            return "#F44336";
-                        }
-                        font.weight: Font.Medium
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    // Reconnect button (visible only on error or disconnected)
-                    Button {
-                        visible: connectionState === 0 || connectionState === 3
-                        text: "Reconnect"
-                        font.family: "Segoe UI"
-                        font.pixelSize: 11
-                        Layout.alignment: Qt.AlignVCenter
-                        background: Rectangle {
-                            color: parent.pressed ? "#1565C0" : "#1976D2"
-                            radius: 4
-                            implicitWidth: 70
-                            implicitHeight: 24
-                        }
-                        contentItem: Text {
-                            text: parent.text
-                            color: "#FFFFFF"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        onClicked: {
-                            mainWindow.reconnect();
-                        }
                     }
                 }
             }
@@ -276,6 +216,67 @@ Window {
                 color: connectionState === 3 ? "#F44336" : (connectionState === 0 ? "#9E9E9E" : "#999999")
                 font.pixelSize: 16
                 visible: sensors.length === 0 || connectionState === 0 || connectionState === 1 || connectionState === 3
+            }
+        }
+
+        // Connection Status Indicator (bottom right)
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignBottom
+            spacing: 8
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Rectangle {
+                implicitWidth: 10
+                implicitHeight: 10
+                radius: 5
+                color: {
+                    if (connectionState === 0) return "#9E9E9E"; // Disconnected - Gray
+                    if (connectionState === 1) return "#FFA000"; // Connecting - Orange
+                    if (connectionState === 2) return "#4CAF50"; // Connected - Green
+                    return "#F44336"; // Error - Red
+                }
+            }
+
+            Text {
+                text: connectionStatusText
+                font.family: "Segoe UI"
+                font.pixelSize: 14
+                color: {
+                    if (connectionState === 0) return "#9E9E9E";
+                    if (connectionState === 1) return "#FFA000";
+                    if (connectionState === 2) return "#4CAF50";
+                    return "#F44336";
+                }
+                font.weight: Font.Bold
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            // Reconnect button (visible only on error or disconnected)
+            Button {
+                visible: connectionState === 0 || connectionState === 3
+                text: "Reconnect"
+                font.family: "Segoe UI"
+                font.pixelSize: 11
+                Layout.alignment: Qt.AlignVCenter
+                background: Rectangle {
+                    color: parent.pressed ? "#1565C0" : "#1976D2"
+                    radius: 4
+                    implicitWidth: 70
+                    implicitHeight: 24
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#FFFFFF"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: {
+                    mainWindow.reconnect();
+                }
             }
         }
     }
