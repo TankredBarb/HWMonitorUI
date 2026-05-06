@@ -1,7 +1,11 @@
-#include <QCoreApplication>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QVariantList>
+#include <QVariantMap>
+#include <QTimer>
 #include <QDebug>
-#include <iostream>
-#include <iomanip>
+#include <QIcon>
 #include "iSensorProvider.h"
 
 #ifdef Q_OS_WIN
@@ -10,79 +14,92 @@
     #include "linuxSysfsProvider.h"
 #endif
 
-void printConsole(const HardwareInfo &hw, const QList<SensorData> &sensors)
+// Helper to convert C++ struct to QML-friendly QVariantMap
+QVariantMap sensorToMap(const SensorData &s)
 {
-    std::cout << "\n";
-    std::cout << "========================================================\n";
-    std::cout << "                   HARDWARE MONITOR                    \n";
-    std::cout << "========================================================\n";
-
-    if (!hw.cpuModel.isEmpty())
-    {
-        std::cout << "CPU: " << hw.cpuModel.toStdString() << "\n";
-    }
-    if (!hw.gpuModel.isEmpty())
-    {
-        std::cout << "GPU: " << hw.gpuModel.toStdString() << "\n";
-    }
-    if (!hw.motherboardModel.isEmpty())
-    {
-        std::cout << "MB:  " << hw.motherboardModel.toStdString() << "\n";
-    }
-
-    std::cout << "--------------------------------------------------------\n";
-    // Widths: Sensor=35, Value=8, Unit=5
-    std::cout << std::left << std::setw(35) << "SENSOR"
-              << std::right << std::setw(8) << "VALUE"
-              << std::setw(5) << "UNIT" << "\n";
-    std::cout << "--------------------------------------------------------\n";
-
-    for (const auto &s : sensors)
-    {
-        std::string sensorName = s.sensorName.toStdString();
-        // Truncate long names
-        if (sensorName.length() > 35)
-        {
-            sensorName = sensorName.substr(0, 32) + "...";
-        }
-
-        std::cout << std::left << std::setw(35) << sensorName
-                  << std::right << std::fixed << std::setprecision(1)
-                  << std::setw(8) << s.value
-                  << std::setw(5) << s.unit.toStdString() << "\n";
-    }
-
-    std::cout << "========================================================\n";
+    QVariantMap map;
+    map.insert("name", s.sensorName);
+    map.insert("value", s.value);
+    map.insert("unit", s.unit);
+    map.insert("type", s.type);
+    return map;
 }
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
-    app.setApplicationName("QtHwMonitor");
-    app.setOrganizationName("Dev");
+    // High DPI scaling support
+    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
+    QGuiApplication app(argc, argv);
+    app.setApplicationName("QtHwMonitor");
+    app.setWindowIcon(QIcon(":/hwmon.png"));
+
+    QQmlApplicationEngine engine;
+
+    // Initialize Provider
     ISensorProvider *provider = nullptr;
 #ifdef Q_OS_WIN
     provider = new LhmClient(&app);
 #elif defined(Q_OS_LINUX)
     provider = new LinuxSysfsProvider(&app);
-#else
-    qFatal("Unsupported platform");
 #endif
 
-    QObject::connect(provider, &ISensorProvider::dataReady,
-                     [&app](const HardwareInfo &hw, const QList<SensorData> &data)
+    if (!provider)
     {
-        printConsole(hw, data);
-        QCoreApplication::quit();
+        qFatal("Unsupported platform");
+        return -1;
+    }
+
+    // Load QML
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    if (engine.rootObjects().isEmpty())
+    {
+        return -1;
+    }
+
+    QObject *rootObject = engine.rootObjects().first();
+
+    // Function to update QML properties with current data
+    auto updateQmlData = [rootObject](const HardwareInfo &hw, const QList<SensorData> &sensors)
+    {
+        if (!rootObject) return;
+
+        // 1. Update Hardware Info
+        QVariantMap hwMap;
+        hwMap.insert("cpu", hw.cpuModel);
+        hwMap.insert("gpu", hw.gpuModel);
+        hwMap.insert("mb", hw.motherboardModel);
+        rootObject->setProperty("hardwareInfo", hwMap);
+
+        // 2. Update Sensors List
+        QVariantList sensorList;
+        for (const auto &s : sensors)
+        {
+            sensorList.append(sensorToMap(s));
+        }
+        rootObject->setProperty("sensors", sensorList);
+    };
+
+    // Connect Signal -> Update QML Properties
+    QObject::connect(provider, &ISensorProvider::dataReady, updateQmlData);
+
+    // Connect Error -> Log
+    QObject::connect(provider, &ISensorProvider::error, [](const QString &err)
+    {
+        qCritical() << "[ERROR]" << err;
     });
 
-    QObject::connect(provider, &ISensorProvider::error, [&app](const QString &err)
-    {
-        qCritical() << "[ERROR] " << err;
-        QCoreApplication::quit();
-    });
+    // Setup Timer for Live Updates (every 2 seconds)
+    QTimer *timer = new QTimer(&app);
+    timer->setInterval(2000); // 2000 ms = 2 seconds
 
+    QObject::connect(timer, &QTimer::timeout, provider, &ISensorProvider::fetchData);
+
+    // Start the timer
+    timer->start();
+
+    // Initial fetch immediately so we don't wait 2 seconds for first data
     provider->fetchData();
+
     return app.exec();
 }
