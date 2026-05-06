@@ -27,7 +27,8 @@ private:
 
     void parseJson(const QByteArray &data);
     void traverseJson(const QJsonArray &arr, QList<SensorData> &out, HardwareInfo &hw,
-                      const QString &currentDevId = {}, const QString &currentDevName = {});
+                      const QString &currentDevId = {}, const QString &currentDevName = {},
+                      const QString &parentText = {});
     bool isKeySensor(const QString &sensorId, const QString &type, const QString &text, const QString &devId);
     void updateConnectionState(ConnectionState newState);
 };

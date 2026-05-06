@@ -50,7 +50,6 @@ void LhmClient::onNetworkReply(QNetworkReply *reply)
     {
         m_retryCount++;
 
-        // Check if hwmon is not running (connection refused)
         if (reply->error() == QNetworkReply::ConnectionRefusedError)
         {
             emit error("Hardware Monitor service is not running. Please start hwmonitor and try again.");
@@ -64,17 +63,13 @@ void LhmClient::onNetworkReply(QNetworkReply *reply)
             emit error(reply->errorString());
         }
 
-        // No auto-retry - wait for user to click Reconnect button
         updateConnectionState(ConnectionState::Error);
-
         reply->deleteLater();
         return;
     }
 
-    // Success - reset retry count and update state
     m_retryCount = 0;
     updateConnectionState(ConnectionState::Connected);
-
     parseJson(reply->readAll());
     reply->deleteLater();
 }
@@ -86,7 +81,6 @@ bool LhmClient::isKeySensor(const QString &sensorId, const QString &type, const 
         return false;
     }
 
-    // 1. CPU Metrics
     if (devId.contains("cpu", Qt::CaseInsensitive))
     {
         if (type == "Temperature")
@@ -102,7 +96,6 @@ bool LhmClient::isKeySensor(const QString &sensorId, const QString &type, const 
         }
     }
 
-    // 2. Motherboard Metrics
     if (devId.contains("lpc", Qt::CaseInsensitive) || devId.contains("motherboard", Qt::CaseInsensitive))
     {
         if (type == "Temperature")
@@ -113,7 +106,6 @@ bool LhmClient::isKeySensor(const QString &sensorId, const QString &type, const 
         }
     }
 
-    // 3. GPU Metrics
     if (devId.contains("gpu", Qt::CaseInsensitive))
     {
         if (type == "Temperature")
@@ -141,14 +133,15 @@ void LhmClient::parseJson(const QByteArray &data)
     QJsonObject root = doc.object();
     if (root.contains("Children") && root["Children"].isArray())
     {
-        traverseJson(root["Children"].toArray(), sensors, hw);
+        traverseJson(root["Children"].toArray(), sensors, hw, QString(), QString(), QString());
     }
 
     emit dataReady(hw, sensors);
 }
 
 void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, HardwareInfo &hw,
-                             const QString &currentDevId, const QString &currentDevName)
+                             const QString &currentDevId, const QString &currentDevName,
+                             const QString &ramSectionName)
 {
     for (const QJsonValue &val : arr)
     {
@@ -156,9 +149,32 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
 
         QString devId = obj.value("HardwareId").toString();
         QString devName = obj.value("Text").toString();
+        QString text = obj.value("Text").toString();
+        QString type = obj.value("Type").toString();
+        QString rawValue = obj.value("RawValue").toString();
+        QString sensorId = obj.value("SensorId").toString();
 
         QString activeDevId = devId.isEmpty() ? currentDevId : devId;
         QString activeDevName = devName.isEmpty() ? currentDevName : devName;
+
+        // Логика определения контекста памяти:
+        // Нам нужно поймать уровень "Total Memory" или "Virtual Memory".
+        // Они находятся внутри устройства с ID "/ram" или "/vram".
+        // У них есть Children, но нет SensorId.
+        // Важно: не перезаписывать контекст, если мы зашли глубже (в "Load" или "Data").
+        QString activeRamSectionName = ramSectionName;
+
+        if (activeDevId.contains("ram", Qt::CaseInsensitive))
+        {
+            // Если у элемента есть дети и нет SensorId, и имя подходит - это наш контейнер памяти
+            if (obj.contains("Children") && obj["Children"].isArray() && sensorId.isEmpty())
+            {
+                if (text == "Total Memory" || text == "Virtual Memory")
+                {
+                    activeRamSectionName = text;
+                }
+            }
+        }
 
         if (!devId.isEmpty())
         {
@@ -176,24 +192,68 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
             }
         }
 
-        if (obj.contains("Children") && obj["Children"].isArray())
+        // Helper lambda to parse value
+        auto parseValue = [](const QString &raw) -> double {
+            QString cleanNum = raw;
+            cleanNum.remove(QRegularExpression("[^\\d,\\.]"));
+            cleanNum.replace(',', '.');
+            bool ok;
+            return cleanNum.toDouble(&ok);
+        };
+
+        // --- NEW SENSORS LOGIC ---
+
+        // 1. CPU Package Power
+        if (text == "Package" && type == "Power" && activeDevId.contains("cpu", Qt::CaseInsensitive))
         {
-            traverseJson(obj["Children"].toArray(), out, hw, activeDevId, activeDevName);
+            double value = parseValue(rawValue);
+            qDebug() << "[NEW SENSOR] CPU Package Power:" << value << "W" << "Device:" << activeDevName;
         }
 
-        QString sensorId = obj.value("SensorId").toString();
+        // 2. CPU Total Load
+        if (text == "CPU Total" && type == "Load")
+        {
+            double value = parseValue(rawValue);
+            qDebug() << "[NEW SENSOR] CPU Load Total:" << value << "%" << "Device:" << activeDevName;
+        }
+
+        // 3. GPU Package Power
+        if (text == "GPU Package" && type == "Power" && activeDevId.contains("gpu", Qt::CaseInsensitive))
+        {
+            double value = parseValue(rawValue);
+            qDebug() << "[NEW SENSOR] GPU Package Power:" << value << "W" << "Device:" << activeDevName;
+        }
+
+        // 4. Memory Load (ONLY from "Total Memory")
+        if (text == "Memory" && type == "Load")
+        {
+            // Отладочный вывод перед проверкой
+            // qDebug() << "[DEBUG] Found Memory Load candidate. activeDevId:" << activeDevId << "ramSectionName:" << activeRamSectionName;
+
+            if (activeRamSectionName == "Total Memory")
+            {
+                double value = parseValue(rawValue);
+                qDebug() << "[NEW SENSOR] Memory Load:" << value << "%" << "Device:" << activeDevName;
+            }
+            // else {
+            //     qDebug() << "[SKIP] Memory Load skipped because rootRamName is '" << activeRamSectionName << "'";
+            // }
+        }
+
+        // --- END NEW SENSORS LOGIC ---
+
+        if (obj.contains("Children") && obj["Children"].isArray())
+        {
+            traverseJson(obj["Children"].toArray(), out, hw, activeDevId, activeDevName, activeRamSectionName);
+        }
+
         if (!sensorId.isEmpty())
         {
-            QString type = obj.value("Type").toString();
-            QString text = obj.value("Text").toString();
-            QString rawValue = obj.value("RawValue").toString();
-
             if (isKeySensor(sensorId, type, text, activeDevId))
             {
                 double value = 0.0;
                 QString unit;
 
-                // Clean number string: keep only digits, dot, comma
                 QString cleanNum = rawValue;
                 cleanNum.remove(QRegularExpression("[^\\d,\\.]"));
                 cleanNum.replace(',', '.');
@@ -202,10 +262,9 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
                 value = cleanNum.toDouble(&ok);
                 if (ok)
                 {
-                    // Hardcode units based on type to avoid encoding issues with '°' symbol
                     if (type == "Temperature")
                     {
-                        unit = "C"; // Simple ASCII 'C' instead of '°C'
+                        unit = "C";
                     }
                     else if (type == "Clock")
                     {
