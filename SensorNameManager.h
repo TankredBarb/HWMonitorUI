@@ -1,5 +1,4 @@
-#ifndef SENSORNAMEMANAGER_H
-#define SENSORNAMEMANAGER_H
+#pragma once
 
 #include <QObject>
 #include <QString>
@@ -20,11 +19,14 @@ public:
     Q_INVOKABLE void saveSensorName(const QString &sensorId, const QString &customName);
     void loadNames();
 
+signals:
+    void namesChanged();
+
 private:
     QString getConfigPath() const;
-    void saveToFile();
+    bool saveToFile();
+    bool loadFromFile();
 
     QMap<QString, QString> m_customNames;
 };
 
-#endif // SENSORNAMEMANAGER_H
