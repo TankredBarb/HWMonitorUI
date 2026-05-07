@@ -33,6 +33,7 @@ bool ApplicationController::initialize()
 
     m_engine.rootContext()->setContextProperty("sensorNameManager", &m_nameManager);
     m_engine.rootContext()->setContextProperty("sensorModel", &m_sensorModel);
+    m_engine.rootContext()->setContextProperty("appController", this);
 
     // Create platform-specific provider
 #ifdef Q_OS_WIN
@@ -57,6 +58,7 @@ bool ApplicationController::initialize()
 
     // Connect signals
     connect(m_provider, &ISensorProvider::dataReady, this, &ApplicationController::onDataReady);
+    connect(m_provider, &ISensorProvider::rawDataReceived, this, &ApplicationController::onRawDataReceived);
     connect(m_provider, &ISensorProvider::error, this, &ApplicationController::onError);
     connect(m_provider, &ISensorProvider::connectionStateChanged, this, &ApplicationController::onConnectionStateChanged);
     connect(m_rootObject, SIGNAL(reconnectClicked()), m_provider, SLOT(reconnect()));
@@ -99,6 +101,15 @@ void ApplicationController::updateQmlData(const HardwareInfo &hw, const QList<Se
 void ApplicationController::onDataReady(const HardwareInfo &hw, const QList<SensorData> &sensors)
 {
     updateQmlData(hw, sensors);
+}
+
+void ApplicationController::onRawDataReceived(const QString &json)
+{
+    if (m_rawJson != json)
+    {
+        m_rawJson = json;
+        emit rawJsonChanged();
+    }
 }
 
 void ApplicationController::onError(const QString &error)

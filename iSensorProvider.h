@@ -37,6 +37,7 @@ public:
 
 signals:
     void dataReady(const HardwareInfo &hardware, const QList<SensorData> &sensors);
+    void rawDataReceived(const QString &json);
     void error(const QString &message);
     void connectionStateChanged(ConnectionState state);
 };

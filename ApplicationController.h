@@ -13,6 +13,7 @@
 class ApplicationController : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(QString rawJson READ rawJson NOTIFY rawJsonChanged)
 
 public:
     explicit ApplicationController(QObject *parent = nullptr);
@@ -21,8 +22,14 @@ public:
     bool initialize();
     int exec();
 
+    QString rawJson() const { return m_rawJson; }
+
+signals:
+    void rawJsonChanged();
+
 private slots:
     void onDataReady(const HardwareInfo &hw, const QList<SensorData> &sensors);
+    void onRawDataReceived(const QString &json);
     void onError(const QString &error);
     void onConnectionStateChanged(ISensorProvider::ConnectionState state);
 
@@ -36,5 +43,6 @@ private:
     ISensorProvider *m_provider;
     QTimer *m_timer;
     QObject *m_rootObject;
+    QString m_rawJson;
 };
 

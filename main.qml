@@ -189,4 +189,13 @@ Window {
         transparencyValue: mainWindow.transparencyValue
         onTransparencyValueChanged: mainWindow.transparencyValue = transparencyValue
     }
+
+    ExpertJsonView {
+        id: expertJsonView
+    }
+
+    Shortcut {
+        sequences: ["Ctrl+Shift+J"]
+        onActivated: expertJsonView.open()
+    }
 }

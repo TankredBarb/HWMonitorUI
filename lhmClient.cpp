@@ -74,7 +74,9 @@ void LhmClient::onNetworkReply(QNetworkReply *reply)
 
     m_retryCount = 0;
     updateConnectionState(ConnectionState::Connected);
-    parseJson(reply->readAll());
+    QByteArray data = reply->readAll();
+    emit rawDataReceived(QString::fromUtf8(data));
+    parseJson(data);
     reply->deleteLater();
 }
 
