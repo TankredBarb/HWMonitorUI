@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-# Поиск Qt (любая версия 5.15+ или 6.x)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Qml Quick Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Qml Quick Network)
 
@@ -17,8 +16,6 @@ set(QT_LIBS
     Qt${QT_VERSION_MAJOR}::Network
 )
 
-# Список исходников
-# ВАЖНО: SensorNameManager добавлен СЮДА, чтобы сработал AUTOMOC
 set(PROJECT_SOURCES
     main.cpp
     lhmClient.cpp
@@ -29,9 +26,11 @@ set(PROJECT_SOURCES
     qml.qrc
     SensorNameManager.h
     SensorNameManager.cpp
+    ApplicationController.h
+    ApplicationController.cpp
 )
 
-# Добавляем Windows-иконку
+
 if(WIN32)
     list(APPEND PROJECT_SOURCES
         resources.rc
@@ -39,12 +38,10 @@ if(WIN32)
     )
 endif()
 
-# Создаем исполняемый файл только из переменной PROJECT_SOURCES
 add_executable(qthwmon ${PROJECT_SOURCES})
 
 target_link_libraries(qthwmon PRIVATE ${QT_LIBS})
 
-# Убираем консольное окно (GUI-приложение)
 if(WIN32)
     set_target_properties(qthwmon PROPERTIES WIN32_EXECUTABLE ON)
 endif()
