@@ -9,30 +9,17 @@ Window {
     title: "Qt Hardware Monitor"
     color: "#E8E8E8"
 
-    // Dynamic size based on connection state - use fixed values to prevent flickering
     width: 380
     height: 580
 
-    // Store previous state to prevent flickering
-    property int prevState: -1
-    onConnectionStateChanged: {
-        prevState = connectionState
-    }
-
     property var hardwareInfo: ({})
     property var sensors: []
-    property int connectionState: 0 // 0=Disconnected, 1=Connecting, 2=Connected, 3=Error
+    property int connectionState: 0
     property string connectionStatusText: "Disconnected"
 
-    function updateConnectionState(state) {
-        connectionState = state;
-        switch(state) {
-            case 0: connectionStatusText = "Disconnected"; break;
-            case 1: connectionStatusText = "Connecting..."; break;
-            case 2: connectionStatusText = "Connected"; break;
-            case 3: connectionStatusText = "Connection Error"; break;
-        }
-    }
+    // Properties for sensor editor dialog
+    property var currentSensor: null
+    property string customSensorName: ""
 
     function reconnect() {
         console.log("Reconnecting...");
@@ -46,7 +33,7 @@ Window {
         anchors.margins: 16
         spacing: 16
 
-        // --- Header Section (only visible when connected) ---
+        // --- Header Section ---
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 90
@@ -85,14 +72,13 @@ Window {
             }
         }
 
-        // --- Sensors Grid (only visible when connected) ---
+        // --- Sensors Grid ---
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             visible: connectionState === 2
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
-            implicitHeight: connectionState === 2 ? parent.height - 180 : 0
 
             GridLayout {
                 width: parent.width
@@ -109,30 +95,40 @@ Window {
                         Layout.preferredWidth: 170
                         Layout.preferredHeight: 75
                         Layout.minimumWidth: 80
-                        color: "#FFFFFF"
+
+                        // Цвета и границы
+                        color: mouseArea.containsMouse ? "#F5F5F5" : "#FFFFFF"
                         radius: 16
-                        border.color: "#D0D0D0"
+                        border.color: mouseArea.containsMouse ? "#1976D2" : "#D0D0D0"
                         border.width: 1
+                        scale: mouseArea.containsMouse ? 1.02 : 1.0
 
-                        MouseArea {
-                            id: mouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                        }
-
-                        scale: mouseArea.containsMouse ? 1.01 : 1.0
                         Behavior on scale {
                             NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
                         }
                         Behavior on border.color {
                             ColorAnimation { duration: 150 }
                         }
+                        Behavior on color {
+                            ColorAnimation { duration: 150 }
+                        }
 
+                        // MouseArea теперь заполняет ВСЮ карточку без отступов
+                        MouseArea {
+                            id: mouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                sensorEditorPopup.openDialog(modelData)
+                            }
+                        }
+
+                        // Контент внутри, с отступами, чтобы не прилипал к краям
                         RowLayout {
                             anchors.fill: parent
-                            anchors.leftMargin: 18
-                            anchors.rightMargin: 18
+                            anchors.margins: 14 // Отступы ВНУТРИ карточки
                             spacing: 12
 
                             ColumnLayout {
@@ -232,7 +228,7 @@ Window {
             }
         }
 
-        // Status message for non-connected states
+        // Status message
         Text {
             Layout.alignment: Qt.AlignCenter
             Layout.fillWidth: true
@@ -248,18 +244,15 @@ Window {
             visible: connectionState !== 2
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
-            Layout.preferredHeight: connectionState !== 2 ? implicitHeight : 0
         }
 
-        // Connection Status Indicator and Reconnect button (bottom)
+        // Bottom bar
         RowLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignBottom
             spacing: 8
 
-            Item {
-                Layout.fillWidth: true
-            }
+            Item { Layout.fillWidth: true }
 
             Rectangle {
                 id: connectionIndicator
@@ -267,10 +260,10 @@ Window {
                 implicitHeight: 10
                 radius: 5
                 color: {
-                    if (connectionState === 0) return "#9E9E9E"; // Disconnected - Gray
-                    if (connectionState === 1) return "#FFA000"; // Connecting - Orange
-                    if (connectionState === 2) return "#4CAF50"; // Connected - Green
-                    return "#F44336"; // Error - Red
+                    if (connectionState === 0) return "#9E9E9E";
+                    if (connectionState === 1) return "#FFA000";
+                    if (connectionState === 2) return "#4CAF50";
+                    return "#F44336";
                 }
                 visible: connectionState === 2
             }
@@ -290,7 +283,6 @@ Window {
                 visible: connectionState === 2
             }
 
-            // Reconnect button (visible only on error or disconnected)
             Button {
                 visible: connectionState === 0 || connectionState === 3
                 text: "Reconnect"
@@ -315,10 +307,209 @@ Window {
             }
         }
 
-        // Invisible spacer to fill remaining space when connected
         Item {
             Layout.fillHeight: true
             visible: connectionState === 2
+        }
+    }
+
+    // Sensor Editor Dialog
+    Popup {
+        id: sensorEditorPopup
+        modal: true
+        focus: true
+        parent: mainWindow.contentItem
+        anchors.centerIn: parent
+        width: 340
+        height: 340
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle {
+            color: "#FFFFFF"
+            radius: 16
+            border.color: "#D0D0D0"
+            border.width: 1
+        }
+        Overlay.modal: Rectangle {
+            color: "#80000000"
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 20
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Text {
+                    text: {
+                        if (currentSensor && currentSensor.type === "Temperature") return "🌡️";
+                        if (currentSensor && currentSensor.type === "Power") return "⚡";
+                        if (currentSensor && currentSensor.type === "Load") return "📊";
+                        return "⚡";
+                    }
+                    font.pixelSize: 28
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Text {
+                        text: "Edit Sensor Name"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 16
+                        font.weight: Font.Bold
+                        color: "#1A1A1A"
+                    }
+
+                    Text {
+                        text: currentSensor ? currentSensor.name : ""
+                        font.family: "Segoe UI"
+                        font.pixelSize: 11
+                        color: "#666666"
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: "#E0E0E0"
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text {
+                    text: "Current Value"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 11
+                    color: "#666666"
+                }
+
+                Text {
+                    text: currentSensor ? Number(currentSensor.value).toFixed(1) + " " + currentSensor.unit : "--"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 24
+                    font.weight: Font.Bold
+                    color: {
+                        if (!currentSensor) return "#1A1A1A";
+                        if (currentSensor.type === "Temperature" || currentSensor.type === "Load") {
+                            if (currentSensor.value > 85) return "#D32F2F";
+                            if (currentSensor.value > 70) return "#F57C00";
+                            return "#388E3C";
+                        }
+                        return "#1976D2";
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text {
+                    text: "Custom Name"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 11
+                    color: "#666666"
+                }
+
+                TextField {
+                    id: nameInput
+                    Layout.fillWidth: true
+                    placeholderText: "Enter custom name (English or Russian)"
+                    text: customSensorName
+                    font.family: "Segoe UI"
+                    font.pixelSize: 13
+                    color: "#FFFFFF"
+                    selectByMouse: true
+                    validator: RegularExpressionValidator { regularExpression: /.{0,50}/ }
+
+                    background: Rectangle {
+                        color: "#2b2b2b"
+                        radius: 8
+                        border.color: nameInput.activeFocus ? "#4a90e2" : "#555555"
+                        border.width: 1
+                    }
+
+                    placeholderTextColor: "#aaaaaa"
+                    selectionColor: "#4a90e2"
+                    selectedTextColor: "#FFFFFF"
+
+                    onAccepted: mainWindow.saveCustomNameAction()
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                spacing: 10
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: "Cancel"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 12
+                    implicitWidth: 90
+                    implicitHeight: 36
+                    background: Rectangle {
+                        color: parent.pressed ? "#E0E0E0" : "#F5F5F5"
+                        radius: 8
+                        border.color: "#D0D0D0"
+                        border.width: 1
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#666666"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    onClicked: sensorEditorPopup.close()
+                }
+
+                Button {
+                    text: "Save"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 12
+                    implicitWidth: 90
+                    implicitHeight: 36
+                    background: Rectangle {
+                        color: parent.pressed ? "#1565C0" : "#1976D2"
+                        radius: 8
+                    }
+                    contentItem: Text {
+                        text: parent.text
+                        color: "#FFFFFF"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    onClicked: mainWindow.saveCustomNameAction()
+                }
+            }
+        }
+
+        function openDialog(sensor) {
+            currentSensor = sensor
+            customSensorName = sensor.name
+            nameInput.text = customSensorName
+            open()
+            nameInput.forceActiveFocus()
+        }
+    }
+
+    // Глобальная функция сохранения
+    function saveCustomNameAction() {
+        if (currentSensor) {
+            var newName = nameInput.text.trim();
+            sensorNameManager.saveSensorName(currentSensor.id, newName);
+            console.log("Saved custom name:", newName, "for unique ID:", currentSensor.id);
+            sensorEditorPopup.close();
         }
     }
 }

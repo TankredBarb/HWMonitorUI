@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <QIcon>
 #include "iSensorProvider.h"
+#include "SensorNameManager.h"
 
 #ifdef Q_OS_WIN
     #include "lhmClient.h"
@@ -18,10 +19,15 @@
 QVariantMap sensorToMap(const SensorData &s)
 {
     QVariantMap map;
-    map.insert("name", s.sensorName);
+    // Создаем уникальный ID: DeviceID::SensorName (например: "cpu::package" или "gpu::package")
+    QString uniqueId = s.deviceId + "::" + s.sensorName;
+
+    map.insert("id", uniqueId);
+    map.insert("name", s.sensorName); // Пока сырое имя, в QML или здесь заменим на отображаемое
     map.insert("value", s.value);
     map.insert("unit", s.unit);
     map.insert("type", s.type);
+    map.insert("deviceId", s.deviceId); // На всякий случай передаем и отдельно
     return map;
 }
 
@@ -31,7 +37,13 @@ int main(int argc, char *argv[])
     app.setApplicationName("QtHwMonitor");
     app.setWindowIcon(QIcon(":/hwmon.png"));
 
+    // Initialize Sensor Name Manager
+    SensorNameManager nameManager;
+
     QQmlApplicationEngine engine;
+
+    // Expose nameManager to QML
+    engine.rootContext()->setContextProperty("sensorNameManager", &nameManager);
 
     // Initialize Provider
     ISensorProvider *provider = nullptr;
@@ -57,7 +69,7 @@ int main(int argc, char *argv[])
     QObject *rootObject = engine.rootObjects().first();
 
     // Function to update QML properties with current data
-    auto updateQmlData = [rootObject](const HardwareInfo &hw, const QList<SensorData> &sensors)
+    auto updateQmlData = [rootObject, &nameManager](const HardwareInfo &hw, const QList<SensorData> &sensors)
     {
         if (!rootObject) return;
 
@@ -68,11 +80,22 @@ int main(int argc, char *argv[])
         hwMap.insert("mb", hw.motherboardModel);
         rootObject->setProperty("hardwareInfo", hwMap);
 
-        // 2. Update Sensors List
+        // 2. Update Sensors List (with custom names applied)
         QVariantList sensorList;
         for (const auto &s : sensors)
         {
-            sensorList.append(sensorToMap(s));
+            QVariantMap map = sensorToMap(s);
+
+            // Формируем тот же уникальный ключ
+            QString uniqueId = s.deviceId + "::" + s.sensorName;
+
+            // Получаем отображаемое имя (кастомное или стандартное)
+            QString displayName = nameManager.getDisplayName(uniqueId, s.sensorName);
+
+            // Заменяем имя в мапе на отображаемое
+            map.insert("name", displayName);
+
+            sensorList.append(map);
         }
         rootObject->setProperty("sensors", sensorList);
     };
@@ -88,7 +111,7 @@ int main(int argc, char *argv[])
 
     // Setup Timer for Live Updates (every 2 seconds)
     QTimer *timer = new QTimer(&app);
-    timer->setInterval(2000); // 2000 ms = 2 seconds
+    timer->setInterval(2000);
 
     // Connect Timer Timeout -> Fetch Data
     QObject::connect(timer, &QTimer::timeout, provider, &ISensorProvider::fetchData);
@@ -98,28 +121,26 @@ int main(int argc, char *argv[])
     {
         if (!rootObject) return;
 
-        // Update QML property
         rootObject->setProperty("connectionState", static_cast<int>(state));
 
-        // Update status text based on state
         QString statusText;
         switch (state)
         {
             case ISensorProvider::ConnectionState::Disconnected:
                 statusText = "Disconnected";
-                timer->stop(); // STOP updates when disconnected
+                timer->stop();
                 break;
             case ISensorProvider::ConnectionState::Connecting:
                 statusText = "Connecting...";
-                timer->stop(); // Stop updates while connecting
+                timer->stop();
                 break;
             case ISensorProvider::ConnectionState::Error:
                 statusText = "Connection Error";
-                timer->stop(); // STOP updates on error
+                timer->stop();
                 break;
             case ISensorProvider::ConnectionState::Connected:
                 statusText = "Connected";
-                timer->start(); // START updates only when connected
+                timer->start();
                 break;
         }
         rootObject->setProperty("connectionStatusText", statusText);
@@ -130,9 +151,6 @@ int main(int argc, char *argv[])
 
     // Initial fetch immediately to attempt connection
     provider->fetchData();
-
-    // Note: The timer will automatically start only when the first "Connected" state is received.
-    // If the initial fetch fails, the timer remains stopped until user clicks reconnect.
 
     return app.exec();
 }

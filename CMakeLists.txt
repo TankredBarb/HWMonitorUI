@@ -18,6 +18,7 @@ set(QT_LIBS
 )
 
 # Список исходников
+# ВАЖНО: SensorNameManager добавлен СЮДА, чтобы сработал AUTOMOC
 set(PROJECT_SOURCES
     main.cpp
     lhmClient.cpp
@@ -26,6 +27,8 @@ set(PROJECT_SOURCES
     linuxSysfsProvider.cpp
     linuxSysfsProvider.h
     qml.qrc
+    SensorNameManager.h
+    SensorNameManager.cpp
 )
 
 # Добавляем Windows-иконку
@@ -36,6 +39,7 @@ if(WIN32)
     )
 endif()
 
+# Создаем исполняемый файл только из переменной PROJECT_SOURCES
 add_executable(qthwmon ${PROJECT_SOURCES})
 
 target_link_libraries(qthwmon PRIVATE ${QT_LIBS})
