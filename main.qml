@@ -7,7 +7,7 @@ Window {
     id: mainWindow
     visible: true
     title: "Qt Hardware Monitor"
-    color: "#F5F5F7"
+    color: "#E5E9F0" // Более глубокий серо-голубой для контраста на ярких мониторах
 
     width: Math.max(320, Math.min(Screen.width * 0.2, 450))
     height: Math.max(480, Math.min(Screen.height * 0.53, 700))
