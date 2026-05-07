@@ -6,5 +6,7 @@
         <file>SensorCard.qml</file>
         <file>SensorEditorPopup.qml</file>
         <file>SensorGauge.qml</file>
+        <file>StatusFooter.qml</file>
+        <file>TransparencyMenu.qml</file>
     </qresource>
 </RCC>

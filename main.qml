@@ -7,30 +7,33 @@ Window {
     id: mainWindow
     visible: true
     title: "Qt Hardware Monitor"
-    color: "#E5E9F0" // Более глубокий серо-голубой для контраста на ярких мониторах
+    color: "#E5E9F0"
 
     width: Math.max(320, Math.min(Screen.width * 0.2, 450))
     height: Math.max(480, Math.min(Screen.height * 0.53, 700))
 
+    // --- State Properties ---
     property bool isTransparent: false
     property real transparencyValue: 0.5
+    property bool isOverlay: false
+    property var hardwareInfo: ({})
+    property int connectionState: 0
+    property string connectionStatusText: "Disconnected"
+    property int gridSpacing: 10
+
+    // --- Window State Helpers ---
+    property int oldX: x
+    property int oldY: y
+    property int oldWidth: width
+    property int oldHeight: height
+
     opacity: isTransparent ? (mouseInteraction.containsMouse ? 0.8 : transparencyValue) : 1.0
 
     Behavior on opacity {
         NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
     }
 
-    property var hardwareInfo: ({})
-    property int connectionState: 0
-    property string connectionStatusText: "Disconnected"
-    property int gridSpacing: 10
-
-    property bool isOverlay: false
-    property int oldX: x
-    property int oldY: y
-    property int oldWidth: width
-    property int oldHeight: height
-
+    // --- Timers & Signals ---
     Timer {
         id: restoreTimer
         interval: 50
@@ -43,33 +46,56 @@ Window {
         }
     }
 
+    signal reconnectClicked()
+
+    // --- Mouse Handling ---
     MouseArea {
         id: mouseInteraction
         anchors.fill: parent
         hoverEnabled: true
         enabled: mainWindow.isOverlay
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        
         property point lastMousePos: Qt.point(0, 0)
-        onPressed: (mouse) => { lastMousePos = Qt.point(mouse.x, mouse.y) }
+        
+        onPressed: (mouse) => { 
+            if (mouse.button === Qt.LeftButton) lastMousePos = Qt.point(mouse.x, mouse.y) 
+        }
+        
         onPositionChanged: (mouse) => {
-            if (pressed) {
+            if (pressed && mouse.button === Qt.LeftButton) {
                 var delta = Qt.point(mouse.x - lastMousePos.x, mouse.y - lastMousePos.y)
                 mainWindow.x += delta.x
                 mainWindow.y += delta.y
             }
         }
+
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.RightButton) {
+                contextMenu.popup()
+            }
+        }
     }
 
-    function reconnect() {
-        console.log("Reconnecting...");
-        reconnectClicked();
-    }
-
-    signal reconnectClicked()
-
+    // --- UI Layout ---
     ColumnLayout {
+        id: mainLayout
         anchors.fill: parent
         anchors.margins: 16
         spacing: 16
+        opacity: 0
+        
+        Component.onCompleted: fadeInAnimation.start()
+        
+        NumberAnimation {
+            id: fadeInAnimation
+            target: mainLayout
+            property: "opacity"
+            from: 0
+            to: 1
+            duration: 800
+            easing.type: Easing.OutCubic
+        }
 
         HardwareInfoCard {
             visible: connectionState === 2
@@ -103,6 +129,7 @@ Window {
             }
         }
 
+        // Connection Status Message
         Text {
             Layout.alignment: Qt.AlignCenter
             Layout.fillWidth: true
@@ -120,110 +147,33 @@ Window {
             horizontalAlignment: Text.AlignHCenter
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignBottom
-            spacing: 8
-
-            AbstractButton {
-                id: overlayButton
-                hoverEnabled: true
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                ToolTip.visible: hovered
-                ToolTip.text: mainWindow.isOverlay ? "Restore" : "Always on top"
-
-                contentItem: Item {
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 12; height: 12; radius: 2; color: "transparent"
-                        border.color: mainWindow.isOverlay ? "#007AFF" : "#666666"
-                        border.width: 2; rotation: mainWindow.isOverlay ? 0 : 45
-                        Behavior on rotation { NumberAnimation { duration: 200 } }
-                        Rectangle {
-                            anchors.top: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
-                            width: 2; height: 5; color: parent.border.color
-                        }
-                    }
-                }
-                background: Rectangle {
-                    radius: 6
-                    color: parent.pressed ? "#E0E0E0" : (parent.hovered ? "#F0F0F0" : "transparent")
-                    border.color: mainWindow.isOverlay ? "#007AFF" : "transparent"
-                }
-                onClicked: {
-                    if (!mainWindow.isOverlay) {
-                        mainWindow.oldX = mainWindow.x; mainWindow.oldY = mainWindow.y
-                        mainWindow.oldWidth = mainWindow.width; mainWindow.oldHeight = mainWindow.height
-                        mainWindow.isOverlay = true
-                        mainWindow.flags = Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-                    } else {
-                        mainWindow.isOverlay = false
-                        mainWindow.flags = Qt.Window
-                        restoreTimer.start()
-                    }
+        // Footer Section
+        StatusFooter {
+            isOverlay: mainWindow.isOverlay
+            isTransparent: mainWindow.isTransparent
+            connectionState: mainWindow.connectionState
+            connectionStatusText: mainWindow.connectionStatusText
+            
+            onOverlayToggled: {
+                if (!mainWindow.isOverlay) {
+                    mainWindow.oldX = mainWindow.x; mainWindow.oldY = mainWindow.y
+                    mainWindow.oldWidth = mainWindow.width; mainWindow.oldHeight = mainWindow.height
+                    mainWindow.isOverlay = true
+                    mainWindow.flags = Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+                } else {
+                    mainWindow.isOverlay = false
+                    mainWindow.flags = Qt.Window
+                    restoreTimer.start()
                 }
             }
-
-            AbstractButton {
-                id: transButton
-                hoverEnabled: true
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                ToolTip.visible: hovered
-                ToolTip.text: mainWindow.isTransparent ? "Make opaque" : "Make transparent"
-
-                contentItem: Item {
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 14; height: 14; radius: 7
-                        color: "transparent"
-                        border.color: mainWindow.isTransparent ? "#007AFF" : "#666666"
-                        border.width: 2
-
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: 4; height: 4; radius: 2
-                            color: parent.border.color
-                            visible: mainWindow.isTransparent
-                        }
-                    }
-                }
-                background: Rectangle {
-                    radius: 6
-                    color: parent.pressed ? "#E0E0E0" : (parent.hovered ? "#F0F0F0" : "transparent")
-                    border.color: mainWindow.isTransparent ? "#007AFF" : "transparent"
-                }
-                onClicked: mainWindow.isTransparent = !mainWindow.isTransparent
-            }
-
-            Item { Layout.fillWidth: true }
-
-            RowLayout {
-                spacing: 8
-                visible: connectionState === 2
-                opacity: (mainWindow.isOverlay || mainWindow.isTransparent) ? 0.5 : 1.0
-                Rectangle { width: 8; height: 8; radius: 4; color: "#4CAF50" }
-                Text {
-                    text: connectionStatusText
-                    font.pixelSize: 12; font.weight: Font.DemiBold; color: "#555555"
-                    visible: !mainWindow.isOverlay
-                }
-            }
-
-            Button {
-                visible: (connectionState === 0 || connectionState === 3) && !mainWindow.isOverlay
-                text: "Reconnect"
-                font.pixelSize: 11
-                contentItem: Text { text: parent.text; color: "white"; font.weight: Font.Bold; horizontalAlignment: Text.AlignHCenter }
-                background: Rectangle { color: parent.pressed ? "#005BBF" : "#007AFF"; radius: 6; implicitWidth: 80; implicitHeight: 28 }
-                onClicked: mainWindow.reconnect()
-            }
+            onTransparencyToggled: mainWindow.isTransparent = !mainWindow.isTransparent
+            onReconnectClicked: mainWindow.reconnectClicked()
         }
 
         Item { Layout.fillHeight: true; visible: connectionState === 2 }
     }
 
+    // --- Sub-components & Popups ---
     SensorEditorPopup {
         id: sensorEditorPopup
         onSaveRequested: (name, color, isBold) => {
@@ -234,89 +184,9 @@ Window {
         }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.RightButton
-        onClicked: (mouse) => {
-            if (mouse.button === Qt.RightButton) {
-                contextMenu.popup()
-            }
-        }
-    }
-
-    Menu {
+    TransparencyMenu {
         id: contextMenu
-        
-        background: Rectangle {
-            implicitWidth: 180
-            implicitHeight: 70
-            color: "white"
-            radius: 12
-            border.color: "#B0B0B0"
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
-
-            RowLayout {
-                Layout.fillWidth: true
-                Text {
-                    text: "Transparency"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 12
-                    font.weight: Font.Medium
-                    color: "#666666"
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    text: Math.round(mainWindow.transparencyValue * 100) + "%"
-                    font.family: "Consolas, Monaco, monospace"
-                    font.pixelSize: 12
-                    font.weight: Font.Bold
-                    color: "#007AFF"
-                }
-            }
-
-            Slider {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 20
-                from: 0.1
-                to: 1.0
-                value: mainWindow.transparencyValue
-                onMoved: mainWindow.transparencyValue = value
-                
-                background: Rectangle {
-                    x: parent.leftPadding
-                    y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                    implicitWidth: 200
-                    implicitHeight: 4
-                    width: parent.availableWidth
-                    height: implicitHeight
-                    radius: 2
-                    color: "#E0E0E0"
-
-                    Rectangle {
-                        width: parent.parent.visualPosition * parent.width
-                        height: parent.height
-                        color: "#007AFF"
-                        radius: 2
-                    }
-                }
-
-                handle: Rectangle {
-                    x: parent.leftPadding + parent.visualPosition * (parent.availableWidth - width)
-                    y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                    implicitWidth: 16
-                    implicitHeight: 16
-                    radius: 8
-                    color: parent.pressed ? "#F0F0F0" : "#FFFFFF"
-                    border.color: "#007AFF"
-                    border.width: 2
-                }
-            }
-        }
+        transparencyValue: mainWindow.transparencyValue
+        onTransparencyValueChanged: mainWindow.transparencyValue = transparencyValue
     }
-    }
+}

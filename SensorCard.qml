@@ -73,6 +73,15 @@ Rectangle {
                         return "⚡";
                     }
                     font.pixelSize: 16
+                    color: {
+                        if (root.sensorType === "Temperature") {
+                            if (root.sensorValue > 80) return "#D32F2F";
+                            if (root.sensorValue > 60) return "#F57C00";
+                            return "#1976D2";
+                        }
+                        return "#1A1A1A";
+                    }
+                    Behavior on color { ColorAnimation { duration: 500 } }
                 }
 
                 Text {
