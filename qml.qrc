@@ -2,5 +2,9 @@
     <qresource prefix="/">
         <file>main.qml</file>
         <file>hwmon.png</file>
+        <file>HardwareInfoCard.qml</file>
+        <file>SensorCard.qml</file>
+        <file>SensorEditorPopup.qml</file>
+        <file>SensorGauge.qml</file>
     </qresource>
 </RCC>

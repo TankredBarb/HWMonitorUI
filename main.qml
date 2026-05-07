@@ -17,9 +17,6 @@ Window {
     property int connectionState: 0
     property string connectionStatusText: "Disconnected"
 
-    property var currentSensor: null
-    property string customSensorName: ""
-
     function reconnect() {
         console.log("Reconnecting...");
         reconnectClicked();
@@ -32,42 +29,9 @@ Window {
         anchors.margins: 16
         spacing: 16
 
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 90
-            color: "#FFFFFF"
-            radius: 16
-            border.color: "#D0D0D0"
-            border.width: 1
+        HardwareInfoCard {
             visible: connectionState === 2
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 2
-                spacing: 1
-
-                Text {
-                    text: "HARDWARE MONITOR"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
-                    color: "#666666"
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                RowLayout {
-                    spacing: 20
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 2
-
-                    ColumnLayout {
-                        spacing: 0
-                        Text { text: "CPU: " + (hardwareInfo.cpu || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
-                        Text { text: "GPU: " + (hardwareInfo.gpu || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
-                        Text { text: "MB:  " + (hardwareInfo.mb || "Unknown"); color: "#1A1A1A"; font.pixelSize: 13; font.weight: Font.Medium }
-                    }
-                }
-            }
+            hardwareInfo: mainWindow.hardwareInfo
         }
 
         ScrollView {
@@ -87,144 +51,10 @@ Window {
                 Repeater {
                     model: sensors
 
-                    delegate: Rectangle {
-                        id: card
-                        Layout.preferredWidth: 170
-                        Layout.preferredHeight: 75
-                        Layout.minimumWidth: 80
-
-                        // Selection state stored separately to persist during data updates
-                        property bool isHovered: false
-
-                        // Colors and borders
-                        color: isHovered ? "#E3F2FD" : "#FFFFFF"
-                        radius: 16
-                        border.color: isHovered ? "#1976D2" : "#D0D0D0"
-                        border.width: isHovered ? 2 : 1
-
-                        Behavior on border.color {
-                            ColorAnimation { duration: 150 }
-                        }
-                        Behavior on color {
-                            ColorAnimation { duration: 150 }
-                        }
-                        Behavior on border.width {
-                            NumberAnimation { duration: 150 }
-                        }
-
-                        // MouseArea fills entire card without margins
-                        MouseArea {
-                            id: mouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-
-                            onContainsMouseChanged: {
-                                card.isHovered = containsMouse
-                            }
-
-                            onClicked: {
-                                sensorEditorPopup.openDialog(modelData)
-                            }
-                        }
-
-                        // Content inside with margins to avoid edge clipping
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 14 // Inner card margins
-                            spacing: 12
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: 4
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 6
-
-                                    Text {
-                                        text: {
-                                            if (modelData.type === "Temperature") return "🌡️";
-                                            if (modelData.type === "Power") return "⚡";
-                                            if (modelData.type === "Load") return "📊";
-                                            return "⚡";
-                                        }
-                                        font.pixelSize: 16
-                                    }
-
-                                    Text {
-                                        text: modelData.name
-                                        font.family: "Segoe UI"
-                                        font.pixelSize: 11
-                                        color: "#1A1A1A"
-                                        font.weight: Font.Medium
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                    }
-                                }
-
-                                Text {
-                                    text: Number(modelData.value).toFixed(1) + " " + modelData.unit
-                                    font.family: "Segoe UI"
-                                    font.pixelSize: 20
-                                    font.weight: Font.Bold
-                                    color: {
-                                        if (modelData.type === "Temperature" || modelData.type === "Load") {
-                                            if (modelData.value > 85) return "#D32F2F";
-                                            if (modelData.value > 70) return "#F57C00";
-                                            return "#388E3C";
-                                        }
-                                        return "#1976D2";
-                                    }
-                                }
-                            }
-
-                            Canvas {
-                                id: gauge
-                                Layout.preferredWidth: 55
-                                Layout.preferredHeight: 55
-                                Layout.alignment: Qt.AlignVCenter
-                                visible: modelData.type === "Temperature" || modelData.type === "Load"
-                                antialiasing: true
-
-                                property real val: modelData.value || 0
-                                property real maxVal: modelData.type === "Temperature" ? 100 : 100
-
-                                onValChanged: requestPaint()
-
-                                onPaint: {
-                                    var ctx = getContext("2d");
-                                    ctx.reset();
-
-                                    var w = width;
-                                    var h = height;
-                                    var cx = w / 2;
-                                    var cy = h / 2;
-                                    var r = Math.min(w, h) / 2 - 5;
-
-                                    var activeColor = "#388E3C";
-                                    if (val > 85) activeColor = "#D32F2F";
-                                    else if (val > 70) activeColor = "#F57C00";
-
-                                    ctx.beginPath();
-                                    ctx.arc(cx, cy, r, Math.PI * 0.75, Math.PI * 2.25);
-                                    ctx.lineWidth = 6;
-                                    ctx.strokeStyle = "#E0E0E0";
-                                    ctx.lineCap = "round";
-                                    ctx.stroke();
-
-                                    var progress = Math.min(val / maxVal, 1.0);
-                                    var endAngle = Math.PI * 0.75 + (Math.PI * 1.5 * progress);
-
-                                    ctx.beginPath();
-                                    ctx.arc(cx, cy, r, Math.PI * 0.75, endAngle);
-                                    ctx.lineWidth = 6;
-                                    ctx.strokeStyle = activeColor;
-                                    ctx.lineCap = "round";
-                                    ctx.stroke();
-                                }
-                            }
+                    delegate: SensorCard {
+                        sensorData: modelData
+                        onClicked: {
+                            sensorEditorPopup.openDialog(modelData)
                         }
                     }
                 }
@@ -314,202 +144,15 @@ Window {
         }
     }
 
-    Popup {
+    SensorEditorPopup {
         id: sensorEditorPopup
-        modal: true
-        focus: true
-        parent: mainWindow.contentItem
-        anchors.centerIn: parent
-        width: 340
-        height: 340
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle {
-            color: "#FFFFFF"
-            radius: 16
-            border.color: "#D0D0D0"
-            border.width: 1
-        }
-        Overlay.modal: Rectangle {
-            color: "#80000000"
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 20
-            spacing: 20
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                Text {
-                    text: {
-                        if (currentSensor && currentSensor.type === "Temperature") return "🌡️";
-                        if (currentSensor && currentSensor.type === "Power") return "⚡";
-                        if (currentSensor && currentSensor.type === "Load") return "📊";
-                        return "⚡";
-                    }
-                    font.pixelSize: 28
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    Text {
-                        text: "Edit Sensor Name"
-                        font.family: "Segoe UI"
-                        font.pixelSize: 16
-                        font.weight: Font.Bold
-                        color: "#1A1A1A"
-                    }
-
-                    Text {
-                        text: currentSensor ? currentSensor.name : ""
-                        font.family: "Segoe UI"
-                        font.pixelSize: 11
-                        color: "#666666"
-                        elide: Text.ElideRight
-                    }
-                }
+        onSaveRequested: {
+            if (sensorEditorPopup.currentSensor) {
+                var newName = sensorEditorPopup.currentInputText.trim();
+                sensorNameManager.saveSensorName(sensorEditorPopup.currentSensor.id, newName);
+                console.log("Saved custom name:", newName, "for unique ID:", sensorEditorPopup.currentSensor.id);
+                sensorEditorPopup.close();
             }
-
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: 1
-                color: "#E0E0E0"
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 6
-
-                Text {
-                    text: "Current Value"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 11
-                    color: "#666666"
-                }
-
-                Text {
-                    text: currentSensor ? Number(currentSensor.value).toFixed(1) + " " + currentSensor.unit : "--"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 24
-                    font.weight: Font.Bold
-                    color: {
-                        if (!currentSensor) return "#1A1A1A";
-                        if (currentSensor.type === "Temperature" || currentSensor.type === "Load") {
-                            if (currentSensor.value > 85) return "#D32F2F";
-                            if (currentSensor.value > 70) return "#F57C00";
-                            return "#388E3C";
-                        }
-                        return "#1976D2";
-                    }
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 6
-
-                Text {
-                    text: "Custom Name"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 11
-                    color: "#666666"
-                }
-
-                TextField {
-                    id: nameInput
-                    Layout.fillWidth: true
-                    placeholderText: "Enter custom name (English or Russian)"
-                    text: customSensorName
-                    font.family: "Segoe UI"
-                    font.pixelSize: 13
-                    color: "#1A1A1A"
-                    selectByMouse: true
-                    validator: RegularExpressionValidator { regularExpression: /.{0,50}/ }
-
-                    background: Rectangle {
-                        color: "#FFFFFF"
-                        radius: 8
-                        border.color: nameInput.activeFocus ? "#1976D2" : "#D0D0D0"
-                        border.width: 1
-                    }
-
-                    placeholderTextColor: "#9E9E9E"
-                    selectionColor: "#1976D2"
-                    selectedTextColor: "#FFFFFF"
-
-                    onAccepted: mainWindow.saveCustomNameAction()
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: 8
-                spacing: 10
-
-                Item { Layout.fillWidth: true }
-
-                Button {
-                    text: "Cancel"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 12
-                    implicitWidth: 90
-                    implicitHeight: 36
-                    background: Rectangle {
-                        color: parent.pressed ? "#E0E0E0" : "#F5F5F5"
-                        radius: 8
-                        border.color: "#D0D0D0"
-                        border.width: 1
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        color: "#666666"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    onClicked: sensorEditorPopup.close()
-                }
-
-                Button {
-                    text: "Save"
-                    font.family: "Segoe UI"
-                    font.pixelSize: 12
-                    implicitWidth: 90
-                    implicitHeight: 36
-                    background: Rectangle {
-                        color: parent.pressed ? "#1565C0" : "#1976D2"
-                        radius: 8
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        color: "#FFFFFF"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    onClicked: mainWindow.saveCustomNameAction()
-                }
-            }
-        }
-
-        function openDialog(sensor) {
-            currentSensor = sensor
-            customSensorName = sensor.name
-            nameInput.text = customSensorName
-            open()
-            nameInput.forceActiveFocus()
-        }
-    }
-
-    // Global save function
-    function saveCustomNameAction() {
-        if (currentSensor) {
-            var newName = nameInput.text.trim();
-            sensorNameManager.saveSensorName(currentSensor.id, newName);
-            console.log("Saved custom name:", newName, "for unique ID:", currentSensor.id);
-            sensorEditorPopup.close();
         }
     }
 }
