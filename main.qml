@@ -9,13 +9,14 @@ Window {
     title: "Qt Hardware Monitor"
     color: "#E8E8E8"
 
-    width: 385
-    height: 530
+    width: 350
+    height: 550
 
     property var hardwareInfo: ({})
     property var sensors: []
     property int connectionState: 0
     property string connectionStatusText: "Disconnected"
+    property int gridSpacing: 10 // Вынесли отступ в свойство
 
     function reconnect() {
         console.log("Reconnecting...");
@@ -32,6 +33,7 @@ Window {
         HardwareInfoCard {
             visible: connectionState === 2
             hardwareInfo: mainWindow.hardwareInfo
+            Layout.fillWidth: true
         }
 
         ScrollView {
@@ -41,22 +43,21 @@ Window {
             visible: connectionState === 2
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-            GridLayout {
-                width: parent.width
-                columns: 2
-                rowSpacing: 10
-                columnSpacing: 10
-                Layout.fillWidth: true
+            GridView {
+                id: sensorGrid
+                anchors.fill: parent
 
-                Repeater {
-                    model: sensors
+                // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: используем gridSpacing из свойства окна
+                cellWidth: (sensorGrid.width - mainWindow.gridSpacing) / 2
+                cellHeight: 85
 
-                    delegate: SensorCard {
-                        sensorData: modelData
-                        onClicked: {
-                            sensorEditorPopup.openDialog(modelData)
-                        }
-                    }
+                model: sensors
+                delegate: SensorCard {
+                    width: sensorGrid.cellWidth
+                    height: sensorGrid.cellHeight
+
+                    sensorData: modelData
+                    onClicked: sensorEditorPopup.openDialog(modelData)
                 }
             }
         }
