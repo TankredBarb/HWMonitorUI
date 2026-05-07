@@ -9,8 +9,8 @@ Window {
     title: "Qt Hardware Monitor"
     color: "#E8E8E8"
 
-    width: 380
-    height: 580
+    width: 385
+    height: 530
 
     property var hardwareInfo: ({})
     property var sensors: []
@@ -96,21 +96,23 @@ Window {
                         Layout.preferredHeight: 75
                         Layout.minimumWidth: 80
 
-                        // Цвета и границы
-                        color: mouseArea.containsMouse ? "#F5F5F5" : "#FFFFFF"
-                        radius: 16
-                        border.color: mouseArea.containsMouse ? "#1976D2" : "#D0D0D0"
-                        border.width: 1
-                        scale: mouseArea.containsMouse ? 1.02 : 1.0
+                        // Состояние выделения храним отдельно, чтобы оно не сбрасывалось при обновлении данных
+                        property bool isHovered: false
 
-                        Behavior on scale {
-                            NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
-                        }
+                        // Цвета и границы
+                        color: isHovered ? "#E3F2FD" : "#FFFFFF"
+                        radius: 16
+                        border.color: isHovered ? "#1976D2" : "#D0D0D0"
+                        border.width: isHovered ? 2 : 1
+
                         Behavior on border.color {
                             ColorAnimation { duration: 150 }
                         }
                         Behavior on color {
                             ColorAnimation { duration: 150 }
+                        }
+                        Behavior on border.width {
+                            NumberAnimation { duration: 150 }
                         }
 
                         // MouseArea теперь заполняет ВСЮ карточку без отступов
@@ -119,6 +121,10 @@ Window {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
+
+                            onContainsMouseChanged: {
+                                card.isHovered = containsMouse
+                            }
 
                             onClicked: {
                                 sensorEditorPopup.openDialog(modelData)
@@ -426,19 +432,19 @@ Window {
                     text: customSensorName
                     font.family: "Segoe UI"
                     font.pixelSize: 13
-                    color: "#FFFFFF"
+                    color: "#1A1A1A"
                     selectByMouse: true
                     validator: RegularExpressionValidator { regularExpression: /.{0,50}/ }
 
                     background: Rectangle {
-                        color: "#2b2b2b"
+                        color: "#FFFFFF"
                         radius: 8
-                        border.color: nameInput.activeFocus ? "#4a90e2" : "#555555"
+                        border.color: nameInput.activeFocus ? "#1976D2" : "#D0D0D0"
                         border.width: 1
                     }
 
-                    placeholderTextColor: "#aaaaaa"
-                    selectionColor: "#4a90e2"
+                    placeholderTextColor: "#9E9E9E"
+                    selectionColor: "#1976D2"
                     selectedTextColor: "#FFFFFF"
 
                     onAccepted: mainWindow.saveCustomNameAction()
