@@ -9,8 +9,8 @@ Window {
     title: "Qt Hardware Monitor"
     color: "#E8E8E8"
 
-    width: 350
-    height: 550
+    width: Math.max(320, Math.min(Screen.width * 0.2, 450))
+    height: Math.max(480, Math.min(Screen.height * 0.5, 700))
 
     property var hardwareInfo: ({})
     property var sensors: []
