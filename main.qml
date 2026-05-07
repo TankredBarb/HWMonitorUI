@@ -7,16 +7,57 @@ Window {
     id: mainWindow
     visible: true
     title: "Qt Hardware Monitor"
-    color: "#E8E8E8"
+    color: "#F5F5F7"
 
     width: Math.max(320, Math.min(Screen.width * 0.2, 450))
-    height: Math.max(480, Math.min(Screen.height * 0.5, 700))
+    height: Math.max(480, Math.min(Screen.height * 0.53, 700))
+
+    property bool isTransparent: false
+    opacity: isTransparent ? (mouseInteraction.containsMouse ? 0.8 : 0.5) : 1.0
+
+    Behavior on opacity {
+        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+    }
 
     property var hardwareInfo: ({})
     property var sensors: []
     property int connectionState: 0
     property string connectionStatusText: "Disconnected"
-    property int gridSpacing: 10 // Вынесли отступ в свойство
+    property int gridSpacing: 10
+
+    property bool isOverlay: false
+    property int oldX: x
+    property int oldY: y
+    property int oldWidth: width
+    property int oldHeight: height
+
+    Timer {
+        id: restoreTimer
+        interval: 50
+        repeat: false
+        onTriggered: {
+            mainWindow.x = mainWindow.oldX
+            mainWindow.y = mainWindow.oldY
+            mainWindow.width = mainWindow.oldWidth
+            mainWindow.height = mainWindow.oldHeight
+        }
+    }
+
+    MouseArea {
+        id: mouseInteraction
+        anchors.fill: parent
+        hoverEnabled: true
+        enabled: mainWindow.isOverlay
+        property point lastMousePos: Qt.point(0, 0)
+        onPressed: (mouse) => { lastMousePos = Qt.point(mouse.x, mouse.y) }
+        onPositionChanged: (mouse) => {
+            if (pressed) {
+                var delta = Qt.point(mouse.x - lastMousePos.x, mouse.y - lastMousePos.y)
+                mainWindow.x += delta.x
+                mainWindow.y += delta.y
+            }
+        }
+    }
 
     function reconnect() {
         console.log("Reconnecting...");
@@ -34,6 +75,8 @@ Window {
             visible: connectionState === 2
             hardwareInfo: mainWindow.hardwareInfo
             Layout.fillWidth: true
+            opacity: mainWindow.isTransparent ? 0.4 : 1.0
+            Behavior on opacity { NumberAnimation { duration: 200 } }
         }
 
         ScrollView {
@@ -46,16 +89,12 @@ Window {
             GridView {
                 id: sensorGrid
                 anchors.fill: parent
-
-                // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: используем gridSpacing из свойства окна
                 cellWidth: (sensorGrid.width - mainWindow.gridSpacing) / 2
                 cellHeight: 85
-
                 model: sensors
                 delegate: SensorCard {
                     width: sensorGrid.cellWidth
                     height: sensorGrid.cellHeight
-
                     sensorData: modelData
                     onClicked: sensorEditorPopup.openDialog(modelData)
                 }
@@ -72,7 +111,7 @@ Window {
                 return "";
             }
             color: connectionState === 3 ? "#F44336" : (connectionState === 0 ? "#9E9E9E" : "#FFA000")
-            font.pixelSize: 14
+            font.pixelSize: 13
             font.weight: Font.Medium
             visible: connectionState !== 2
             wrapMode: Text.WordWrap
@@ -84,65 +123,103 @@ Window {
             Layout.alignment: Qt.AlignBottom
             spacing: 8
 
-            Item { Layout.fillWidth: true }
+            AbstractButton {
+                id: overlayButton
+                hoverEnabled: true
+                Layout.preferredWidth: 34
+                Layout.preferredHeight: 34
+                ToolTip.visible: hovered
+                ToolTip.text: mainWindow.isOverlay ? "Restore" : "Always on top"
 
-            Rectangle {
-                id: connectionIndicator
-                implicitWidth: 10
-                implicitHeight: 10
-                radius: 5
-                color: {
-                    if (connectionState === 0) return "#9E9E9E";
-                    if (connectionState === 1) return "#FFA000";
-                    if (connectionState === 2) return "#4CAF50";
-                    return "#F44336";
+                contentItem: Item {
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 12; height: 12; radius: 2; color: "transparent"
+                        border.color: mainWindow.isOverlay ? "#007AFF" : "#666666"
+                        border.width: 2; rotation: mainWindow.isOverlay ? 0 : 45
+                        Behavior on rotation { NumberAnimation { duration: 200 } }
+                        Rectangle {
+                            anchors.top: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
+                            width: 2; height: 5; color: parent.border.color
+                        }
+                    }
                 }
-                visible: connectionState === 2
+                background: Rectangle {
+                    radius: 6
+                    color: parent.pressed ? "#E0E0E0" : (parent.hovered ? "#F0F0F0" : "transparent")
+                    border.color: mainWindow.isOverlay ? "#007AFF" : "transparent"
+                }
+                onClicked: {
+                    if (!mainWindow.isOverlay) {
+                        mainWindow.oldX = mainWindow.x; mainWindow.oldY = mainWindow.y
+                        mainWindow.oldWidth = mainWindow.width; mainWindow.oldHeight = mainWindow.height
+                        mainWindow.isOverlay = true
+                        mainWindow.flags = Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+                    } else {
+                        mainWindow.isOverlay = false
+                        mainWindow.flags = Qt.Window
+                        restoreTimer.start()
+                    }
+                }
             }
 
-            Text {
-                text: connectionStatusText
-                font.family: "Segoe UI"
-                font.pixelSize: 14
-                color: {
-                    if (connectionState === 0) return "#9E9E9E";
-                    if (connectionState === 1) return "#FFA000";
-                    if (connectionState === 2) return "#4CAF50";
-                    return "#F44336";
+            AbstractButton {
+                id: transButton
+                hoverEnabled: true
+                Layout.preferredWidth: 34
+                Layout.preferredHeight: 34
+                ToolTip.visible: hovered
+                ToolTip.text: mainWindow.isTransparent ? "Make opaque" : "Make transparent"
+
+                contentItem: Item {
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 14; height: 14; radius: 7
+                        color: "transparent"
+                        border.color: mainWindow.isTransparent ? "#007AFF" : "#666666"
+                        border.width: 2
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 4; height: 4; radius: 2
+                            color: parent.border.color
+                            visible: mainWindow.isTransparent
+                        }
+                    }
                 }
-                font.weight: Font.Bold
-                Layout.alignment: Qt.AlignVCenter
+                background: Rectangle {
+                    radius: 6
+                    color: parent.pressed ? "#E0E0E0" : (parent.hovered ? "#F0F0F0" : "transparent")
+                    border.color: mainWindow.isTransparent ? "#007AFF" : "transparent"
+                }
+                onClicked: mainWindow.isTransparent = !mainWindow.isTransparent
+            }
+
+            Item { Layout.fillWidth: true }
+
+            RowLayout {
+                spacing: 8
                 visible: connectionState === 2
+                opacity: (mainWindow.isOverlay || mainWindow.isTransparent) ? 0.5 : 1.0
+                Rectangle { width: 8; height: 8; radius: 4; color: "#4CAF50" }
+                Text {
+                    text: connectionStatusText
+                    font.pixelSize: 12; font.weight: Font.DemiBold; color: "#555555"
+                    visible: !mainWindow.isOverlay
+                }
             }
 
             Button {
-                visible: connectionState === 0 || connectionState === 3
+                visible: (connectionState === 0 || connectionState === 3) && !mainWindow.isOverlay
                 text: "Reconnect"
-                font.family: "Segoe UI"
                 font.pixelSize: 11
-                Layout.alignment: Qt.AlignVCenter
-                background: Rectangle {
-                    color: parent.pressed ? "#1565C0" : "#1976D2"
-                    radius: 4
-                    implicitWidth: 70
-                    implicitHeight: 24
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: "#FFFFFF"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                onClicked: {
-                    mainWindow.reconnect();
-                }
+                contentItem: Text { text: parent.text; color: "white"; font.weight: Font.Bold; horizontalAlignment: Text.AlignHCenter }
+                background: Rectangle { color: parent.pressed ? "#005BBF" : "#007AFF"; radius: 6; implicitWidth: 80; implicitHeight: 28 }
+                onClicked: mainWindow.reconnect()
             }
         }
 
-        Item {
-            Layout.fillHeight: true
-            visible: connectionState === 2
-        }
+        Item { Layout.fillHeight: true; visible: connectionState === 2 }
     }
 
     SensorEditorPopup {
@@ -151,7 +228,6 @@ Window {
             if (sensorEditorPopup.currentSensor) {
                 var newName = sensorEditorPopup.currentInputText.trim();
                 sensorNameManager.saveSensorName(sensorEditorPopup.currentSensor.id, newName);
-                console.log("Saved custom name:", newName, "for unique ID:", sensorEditorPopup.currentSensor.id);
                 sensorEditorPopup.close();
             }
         }
