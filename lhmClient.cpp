@@ -16,7 +16,11 @@ LhmClient::LhmClient(QObject *parent) : ISensorProvider(parent)
 
 void LhmClient::fetchData()
 {
-    updateConnectionState(ConnectionState::Connecting);
+    if (m_connectionState != ConnectionState::Connected)
+    {
+        updateConnectionState(ConnectionState::Connecting);
+    }
+    
     QNetworkRequest request(QUrl("http://127.0.0.1:8085/data.json"));
     request.setHeader(QNetworkRequest::UserAgentHeader, "QtHwMonitor/1.0");
     m_networkManager.get(request);

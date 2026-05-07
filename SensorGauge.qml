@@ -4,15 +4,28 @@ Canvas {
     id: root
     antialiasing: true
 
+    renderStrategy: Canvas.Cooperative
+    renderTarget: Canvas.Image
+
     property real value: 0
     property real maxValue: 100
     property string sensorType: ""
 
-    onValueChanged: requestPaint()
+    onValueChanged: {
+        if (root.available) {
+            requestPaint();
+        }
+    }
+
+    onWidthChanged: requestPaint()
+    onHeightChanged: requestPaint()
 
     onPaint: {
         var ctx = getContext("2d");
-        ctx.reset();
+        if (!ctx) return;
+        
+        ctx.save();
+        ctx.clearRect(0, 0, width, height);
 
         var w = width;
         var h = height;
@@ -40,5 +53,6 @@ Canvas {
         ctx.strokeStyle = activeColor;
         ctx.lineCap = "round";
         ctx.stroke();
-    }
-}
+        ctx.restore();
+        }
+        }

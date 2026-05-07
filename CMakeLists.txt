@@ -26,6 +26,8 @@ set(PROJECT_SOURCES
     qml.qrc
     SensorNameManager.h
     SensorNameManager.cpp
+    SensorModel.h
+    SensorModel.cpp
     ApplicationController.h
     ApplicationController.cpp
 )

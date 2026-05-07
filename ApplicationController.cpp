@@ -32,6 +32,7 @@ bool ApplicationController::initialize()
     QGuiApplication::setWindowIcon(QIcon(":/hwmon.png"));
 
     m_engine.rootContext()->setContextProperty("sensorNameManager", &m_nameManager);
+    m_engine.rootContext()->setContextProperty("sensorModel", &m_sensorModel);
 
     // Create platform-specific provider
 #ifdef Q_OS_WIN
@@ -79,20 +80,6 @@ int ApplicationController::exec()
     return QGuiApplication::instance()->exec();
 }
 
-QVariantMap ApplicationController::sensorToMap(const SensorData &s)
-{
-    QVariantMap map;
-    QString uniqueId = s.deviceId + "::" + s.sensorName;
-
-    map.insert("id", uniqueId);
-    map.insert("name", s.sensorName);
-    map.insert("value", s.value);
-    map.insert("unit", s.unit);
-    map.insert("type", s.type);
-    map.insert("deviceId", s.deviceId);
-    return map;
-}
-
 void ApplicationController::updateQmlData(const HardwareInfo &hw, const QList<SensorData> &sensors)
 {
     if (!m_rootObject)
@@ -105,17 +92,8 @@ void ApplicationController::updateQmlData(const HardwareInfo &hw, const QList<Se
     hwMap.insert("mb", hw.motherboardModel);
     m_rootObject->setProperty("hardwareInfo", hwMap);
 
-    // 2. Update Sensors List
-    QVariantList sensorList;
-    for (const auto &s : sensors)
-    {
-        QVariantMap map = sensorToMap(s);
-        QString uniqueId = s.deviceId + "::" + s.sensorName;
-        QString displayName = m_nameManager.getDisplayName(uniqueId, s.sensorName);
-        map.insert("name", displayName);
-        sensorList.append(map);
-    }
-    m_rootObject->setProperty("sensors", sensorList);
+    // 2. Update Sensors Model
+    m_sensorModel.updateData(sensors, &m_nameManager);
 }
 
 void ApplicationController::onDataReady(const HardwareInfo &hw, const QList<SensorData> &sensors)

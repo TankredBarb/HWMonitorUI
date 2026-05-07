@@ -12,8 +12,16 @@ Rectangle {
     implicitWidth: 150
     implicitHeight: 75
 
-    property var sensorData: null
+    property var sensorData: model.sensorData
     property bool isHovered: false
+
+    property string sensorName: model.name
+    property real sensorValue: model.value
+    Behavior on sensorValue {
+        NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
+    }
+    property string sensorUnit: model.unit
+    property string sensorType: model.type
 
     color: isHovered ? "#E3F2FD" : "#FFFFFF"
     radius: 16
@@ -63,17 +71,16 @@ Rectangle {
 
                 Text {
                     text: {
-                        if (!sensorData) return "⚡";
-                        if (sensorData.type === "Temperature") return "🌡️";
-                        if (sensorData.type === "Power") return "⚡";
-                        if (sensorData.type === "Load") return "📊";
+                        if (root.sensorType === "Temperature") return "🌡️";
+                        if (root.sensorType === "Power") return "⚡";
+                        if (root.sensorType === "Load") return "📊";
                         return "⚡";
                     }
                     font.pixelSize: 16
                 }
 
                 Text {
-                    text: sensorData ? sensorData.name : ""
+                    text: root.sensorName
                     font.family: "Segoe UI"
                     font.pixelSize: 11
                     color: "#1A1A1A"
@@ -84,15 +91,14 @@ Rectangle {
             }
 
             Text {
-                text: sensorData ? (Number(sensorData.value).toFixed(1) + " " + sensorData.unit) : ""
-                font.family: "Segoe UI"
-                font.pixelSize: 20
+                text: root.sensorValue.toFixed(1) + " " + root.sensorUnit
+                font.family: "Consolas, Monaco, monospace"
+                font.pixelSize: 18
                 font.weight: Font.Bold
                 color: {
-                    if (!sensorData) return "#1A1A1A";
-                    if (sensorData.type === "Temperature" || sensorData.type === "Load") {
-                        if (sensorData.value > 85) return "#D32F2F";
-                        if (sensorData.value > 70) return "#F57C00";
+                    if (root.sensorType === "Temperature" || root.sensorType === "Load") {
+                        if (root.sensorValue > 85) return "#D32F2F";
+                        if (root.sensorValue > 70) return "#F57C00";
                         return "#388E3C";
                     }
                     return "#1976D2";
@@ -104,10 +110,10 @@ Rectangle {
             Layout.preferredWidth: 55
             Layout.preferredHeight: 55
             Layout.alignment: Qt.AlignVCenter
-            visible: sensorData && (sensorData.type === "Temperature" || sensorData.type === "Load")
-            value: sensorData ? sensorData.value : 0
-            maxValue: sensorData && sensorData.type === "Temperature" ? 100 : 100
-            sensorType: sensorData ? sensorData.type : ""
+            visible: root.sensorType === "Temperature" || root.sensorType === "Load"
+            value: root.sensorValue
+            maxValue: root.sensorType === "Temperature" ? 100 : 100
+            sensorType: root.sensorType
         }
     }
 }

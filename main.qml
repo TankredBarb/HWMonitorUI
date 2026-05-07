@@ -13,14 +13,14 @@ Window {
     height: Math.max(480, Math.min(Screen.height * 0.53, 700))
 
     property bool isTransparent: false
-    opacity: isTransparent ? (mouseInteraction.containsMouse ? 0.8 : 0.5) : 1.0
+    property real transparencyValue: 0.5
+    opacity: isTransparent ? (mouseInteraction.containsMouse ? 0.8 : transparencyValue) : 1.0
 
     Behavior on opacity {
         NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
     }
 
     property var hardwareInfo: ({})
-    property var sensors: []
     property int connectionState: 0
     property string connectionStatusText: "Disconnected"
     property int gridSpacing: 10
@@ -91,12 +91,14 @@ Window {
                 anchors.fill: parent
                 cellWidth: (sensorGrid.width - mainWindow.gridSpacing) / 2
                 cellHeight: 85
-                model: sensors
+                model: sensorModel
+                cacheBuffer: 1000
+                reuseItems: true
                 delegate: SensorCard {
                     width: sensorGrid.cellWidth
                     height: sensorGrid.cellHeight
-                    sensorData: modelData
-                    onClicked: sensorEditorPopup.openDialog(modelData)
+                    sensorData: model.sensorData
+                    onClicked: sensorEditorPopup.openDialog(model.sensorData)
                 }
             }
         }
@@ -232,4 +234,90 @@ Window {
             }
         }
     }
-}
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.RightButton) {
+                contextMenu.popup()
+            }
+        }
+    }
+
+    Menu {
+        id: contextMenu
+        
+        background: Rectangle {
+            implicitWidth: 180
+            implicitHeight: 70
+            color: "white"
+            radius: 12
+            border.color: "#B0B0B0"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: "Transparency"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    color: "#666666"
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: Math.round(mainWindow.transparencyValue * 100) + "%"
+                    font.family: "Consolas, Monaco, monospace"
+                    font.pixelSize: 12
+                    font.weight: Font.Bold
+                    color: "#007AFF"
+                }
+            }
+
+            Slider {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 20
+                from: 0.1
+                to: 1.0
+                value: mainWindow.transparencyValue
+                onMoved: mainWindow.transparencyValue = value
+                
+                background: Rectangle {
+                    x: parent.leftPadding
+                    y: parent.topPadding + parent.availableHeight / 2 - height / 2
+                    implicitWidth: 200
+                    implicitHeight: 4
+                    width: parent.availableWidth
+                    height: implicitHeight
+                    radius: 2
+                    color: "#E0E0E0"
+
+                    Rectangle {
+                        width: parent.parent.visualPosition * parent.width
+                        height: parent.height
+                        color: "#007AFF"
+                        radius: 2
+                    }
+                }
+
+                handle: Rectangle {
+                    x: parent.leftPadding + parent.visualPosition * (parent.availableWidth - width)
+                    y: parent.topPadding + parent.availableHeight / 2 - height / 2
+                    implicitWidth: 16
+                    implicitHeight: 16
+                    radius: 8
+                    color: parent.pressed ? "#F0F0F0" : "#FFFFFF"
+                    border.color: "#007AFF"
+                    border.width: 2
+                }
+            }
+        }
+    }
+    }

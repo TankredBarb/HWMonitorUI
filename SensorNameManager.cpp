@@ -12,7 +12,8 @@ SensorNameManager::SensorNameManager(QObject *parent) : QObject(parent)
 
 QString SensorNameManager::getDisplayName(const QString &sensorId, const QString &defaultName)
 {
-    if (m_customNames.contains(sensorId)) {
+    if (m_customNames.contains(sensorId))
+    {
         return m_customNames[sensorId];
     }
     return defaultName;
@@ -20,9 +21,12 @@ QString SensorNameManager::getDisplayName(const QString &sensorId, const QString
 
 void SensorNameManager::saveSensorName(const QString &sensorId, const QString &customName)
 {
-    if (customName.trimmed().isEmpty()) {
+    if (customName.trimmed().isEmpty())
+    {
         m_customNames.remove(sensorId);
-    } else {
+    }
+    else
+    {
         m_customNames[sensorId] = customName;
     }
     saveToFile();
@@ -37,11 +41,13 @@ void SensorNameManager::loadNames()
 bool SensorNameManager::loadFromFile()
 {
     QFile file(getConfigPath());
-    if (!file.exists()) {
+    if (!file.exists())
+    {
         return false;
     }
 
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         qWarning() << "SensorNameManager: Failed to open config file for reading:" << getConfigPath();
         return false;
     }
@@ -52,12 +58,14 @@ bool SensorNameManager::loadFromFile()
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
 
-    if (parseError.error != QJsonParseError::NoError) {
+    if (parseError.error != QJsonParseError::NoError)
+    {
         qWarning() << "SensorNameManager: Failed to parse JSON config:" << parseError.errorString();
         return false;
     }
 
-    if (!doc.isObject()) {
+    if (!doc.isObject())
+    {
         qWarning() << "SensorNameManager: Config file is not a valid JSON object";
         return false;
     }
@@ -65,8 +73,10 @@ bool SensorNameManager::loadFromFile()
     QJsonObject obj = doc.object();
     m_customNames.clear();
 
-    for (auto it = obj.begin(); it != obj.end(); ++it) {
-        if (it.value().isString()) {
+    for (auto it = obj.begin(); it != obj.end(); ++it)
+    {
+        if (it.value().isString())
+        {
             m_customNames[it.key()] = it.value().toString();
         }
     }
@@ -78,13 +88,15 @@ bool SensorNameManager::saveToFile()
 {
     QFile file(getConfigPath());
 
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
         qWarning() << "SensorNameManager: Failed to open config file for writing:" << getConfigPath();
         return false;
     }
 
     QJsonObject obj;
-    for (auto it = m_customNames.begin(); it != m_customNames.end(); ++it) {
+    for (auto it = m_customNames.begin(); it != m_customNames.end(); ++it)
+    {
         obj[it.key()] = it.value();
     }
 
