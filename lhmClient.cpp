@@ -157,16 +157,14 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
         QString activeDevId = devId.isEmpty() ? currentDevId : devId;
         QString activeDevName = devName.isEmpty() ? currentDevName : devName;
 
-        // Логика определения контекста памяти:
-        // Нам нужно поймать уровень "Total Memory" или "Virtual Memory".
-        // Они находятся внутри устройства с ID "/ram" или "/vram".
-        // У них есть Children, но нет SensorId.
-        // Важно: не перезаписывать контекст, если мы зашли глубже (в "Load" или "Data").
+        // Memory context logic: track "Total Memory" or "Virtual Memory" sections
+        // These are inside devices with ID "/ram" or "/vram", have Children but no SensorId
+        // Important: don't overwrite context if we've gone deeper (into "Load" or "Data")
         QString activeRamSectionName = ramSectionName;
 
         if (activeDevId.contains("ram", Qt::CaseInsensitive))
         {
-            // Если у элемента есть дети и нет SensorId, и имя подходит - это наш контейнер памяти
+            // If element has children, no SensorId, and name matches - this is our memory container
             if (obj.contains("Children") && obj["Children"].isArray() && sensorId.isEmpty())
             {
                 if (text == "Total Memory" || text == "Virtual Memory")
@@ -201,50 +199,36 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
             return cleanNum.toDouble(&ok);
         };
 
-        // --- NEW SENSORS LOGIC ---
-
-        // 1. CPU Package Power
+        // CPU Package Power
         if (text == "Package" && type == "Power" && activeDevId.contains("cpu", Qt::CaseInsensitive))
         {
             double value = parseValue(rawValue);
-            qDebug() << "[NEW SENSOR] CPU Package Power:" << value << "W" << "Device:" << activeDevName;
             out.append({activeDevId, "CPU Package", "Power", "Power", value, "W"});
         }
 
-        // 2. CPU Total Load
+        // CPU Total Load
         if (text == "CPU Total" && type == "Load")
         {
             double value = parseValue(rawValue);
-            qDebug() << "[NEW SENSOR] CPU Load Total:" << value << "%" << "Device:" << activeDevName;
             out.append({activeDevId, "CPU Total", "Load", "Load", value, "%"});
         }
 
-        // 3. GPU Package Power
+        // GPU Package Power
         if (text == "GPU Package" && type == "Power" && activeDevId.contains("gpu", Qt::CaseInsensitive))
         {
             double value = parseValue(rawValue);
-            qDebug() << "[NEW SENSOR] GPU Package Power:" << value << "W" << "Device:" << activeDevName;
             out.append({activeDevId, "GPU Package", "Power", "Power", value, "W"});
         }
 
-        // 4. Memory Load (ONLY from "Total Memory")
+        // Memory Load (ONLY from "Total Memory")
         if (text == "Memory" && type == "Load")
         {
-            // Отладочный вывод перед проверкой
-            // qDebug() << "[DEBUG] Found Memory Load candidate. activeDevId:" << activeDevId << "ramSectionName:" << activeRamSectionName;
-
             if (activeRamSectionName == "Total Memory")
             {
                 double value = parseValue(rawValue);
-                qDebug() << "[NEW SENSOR] Memory Load:" << value << "%" << "Device:" << activeDevName;
                 out.append({activeDevId, "Memory", "Load", "Load", value, "%"});
             }
-            // else {
-            //     qDebug() << "[SKIP] Memory Load skipped because rootRamName is '" << activeRamSectionName << "'";
-            // }
         }
-
-        // --- END NEW SENSORS LOGIC ---
 
         if (obj.contains("Children") && obj["Children"].isArray())
         {

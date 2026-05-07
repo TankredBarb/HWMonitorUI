@@ -17,7 +17,6 @@ Window {
     property int connectionState: 0
     property string connectionStatusText: "Disconnected"
 
-    // Properties for sensor editor dialog
     property var currentSensor: null
     property string customSensorName: ""
 
@@ -33,7 +32,6 @@ Window {
         anchors.margins: 16
         spacing: 16
 
-        // --- Header Section ---
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 90
@@ -72,7 +70,6 @@ Window {
             }
         }
 
-        // --- Sensors Grid ---
         ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -96,10 +93,10 @@ Window {
                         Layout.preferredHeight: 75
                         Layout.minimumWidth: 80
 
-                        // Состояние выделения храним отдельно, чтобы оно не сбрасывалось при обновлении данных
+                        // Selection state stored separately to persist during data updates
                         property bool isHovered: false
 
-                        // Цвета и границы
+                        // Colors and borders
                         color: isHovered ? "#E3F2FD" : "#FFFFFF"
                         radius: 16
                         border.color: isHovered ? "#1976D2" : "#D0D0D0"
@@ -115,7 +112,7 @@ Window {
                             NumberAnimation { duration: 150 }
                         }
 
-                        // MouseArea теперь заполняет ВСЮ карточку без отступов
+                        // MouseArea fills entire card without margins
                         MouseArea {
                             id: mouseArea
                             anchors.fill: parent
@@ -131,10 +128,10 @@ Window {
                             }
                         }
 
-                        // Контент внутри, с отступами, чтобы не прилипал к краям
+                        // Content inside with margins to avoid edge clipping
                         RowLayout {
                             anchors.fill: parent
-                            anchors.margins: 14 // Отступы ВНУТРИ карточки
+                            anchors.margins: 14 // Inner card margins
                             spacing: 12
 
                             ColumnLayout {
@@ -234,7 +231,6 @@ Window {
             }
         }
 
-        // Status message
         Text {
             Layout.alignment: Qt.AlignCenter
             Layout.fillWidth: true
@@ -252,7 +248,6 @@ Window {
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // Bottom bar
         RowLayout {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignBottom
@@ -319,7 +314,6 @@ Window {
         }
     }
 
-    // Sensor Editor Dialog
     Popup {
         id: sensorEditorPopup
         modal: true
@@ -509,7 +503,7 @@ Window {
         }
     }
 
-    // Глобальная функция сохранения
+    // Global save function
     function saveCustomNameAction() {
         if (currentSensor) {
             var newName = nameInput.text.trim();
