@@ -18,7 +18,9 @@ public:
         UnitRole,
         TypeRole,
         DeviceIdRole,
-        ObjectRole
+        ObjectRole,
+        ColorRole,
+        BoldRole
     };
 
     explicit SensorModel(QObject *parent = nullptr);
@@ -34,6 +36,8 @@ private:
         SensorData base;
         QString displayName;
         QString uniqueId;
+        QString color;
+        bool isBold;
     };
 
     QList<InternalSensorData> m_sensors;

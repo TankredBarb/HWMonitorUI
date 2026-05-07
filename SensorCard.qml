@@ -1,14 +1,9 @@
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
-// Layouts больше не нужен для позиционирования внутри Flow, но можно оставить для внутренних элементов
 
 Rectangle {
     id: root
 
-    // Убрали Layout.fillWidth и прочие Layout свойства, так как мы в Flow
-
-    // Ширину и высоту теперь задает родитель (Flow) в main.qml,
-    // но можно задать implicit для корректной работы, если вдруг родитель не задал
     implicitWidth: 150
     implicitHeight: 75
 
@@ -22,6 +17,8 @@ Rectangle {
     }
     property string sensorUnit: model.unit
     property string sensorType: model.type
+    property string sensorColor: model.color || "#1A1A1A"
+    property bool sensorBold: model.isBold || false
 
     color: isHovered ? "#E3F2FD" : "#FFFFFF"
     radius: 16
@@ -54,7 +51,6 @@ Rectangle {
         }
     }
 
-    // Внутри карточки можно использовать RowLayout для выравнивания контента
     RowLayout {
         anchors.fill: parent
         anchors.margins: 14
@@ -83,8 +79,8 @@ Rectangle {
                     text: root.sensorName
                     font.family: "Segoe UI"
                     font.pixelSize: 11
-                    color: "#1A1A1A"
-                    font.weight: Font.Medium
+                    color: root.sensorColor
+                    font.weight: root.sensorBold ? Font.Bold : Font.Medium
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                 }

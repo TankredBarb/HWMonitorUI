@@ -12,23 +12,48 @@ SensorNameManager::SensorNameManager(QObject *parent) : QObject(parent)
 
 QString SensorNameManager::getDisplayName(const QString &sensorId, const QString &defaultName)
 {
-    if (m_customNames.contains(sensorId))
+    if (m_configs.contains(sensorId))
     {
-        return m_customNames[sensorId];
+        return m_configs[sensorId].customName;
     }
     return defaultName;
 }
 
+QString SensorNameManager::getSensorColor(const QString &sensorId, const QString &defaultColor)
+{
+    if (m_configs.contains(sensorId))
+    {
+        return m_configs[sensorId].color;
+    }
+    return defaultColor;
+}
+
+bool SensorNameManager::getSensorBold(const QString &sensorId)
+{
+    if (m_configs.contains(sensorId))
+    {
+        return m_configs[sensorId].isBold;
+    }
+    return false;
+}
+
+void SensorNameManager::saveSensorConfig(const QString &sensorId, const QString &customName, const QString &color, bool isBold)
+{
+    SensorConfig config;
+    config.customName = customName;
+    config.color = color;
+    config.isBold = isBold;
+    
+    m_configs[sensorId] = config;
+    saveToFile();
+    emit namesChanged();
+}
+
 void SensorNameManager::saveSensorName(const QString &sensorId, const QString &customName)
 {
-    if (customName.trimmed().isEmpty())
-    {
-        m_customNames.remove(sensorId);
-    }
-    else
-    {
-        m_customNames[sensorId] = customName;
-    }
+    SensorConfig config = m_configs.value(sensorId);
+    config.customName = customName;
+    m_configs[sensorId] = config;
     saveToFile();
     emit namesChanged();
 }
@@ -48,37 +73,36 @@ bool SensorNameManager::loadFromFile()
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        qWarning() << "SensorNameManager: Failed to open config file for reading:" << getConfigPath();
         return false;
     }
 
     QByteArray jsonData = file.readAll();
     file.close();
 
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
-
-    if (parseError.error != QJsonParseError::NoError)
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData);
+    if (doc.isNull() || !doc.isObject())
     {
-        qWarning() << "SensorNameManager: Failed to parse JSON config:" << parseError.errorString();
         return false;
     }
 
-    if (!doc.isObject())
-    {
-        qWarning() << "SensorNameManager: Config file is not a valid JSON object";
-        return false;
-    }
+    QJsonObject root = doc.object();
+    m_configs.clear();
 
-    QJsonObject obj = doc.object();
-    m_customNames.clear();
-
-    for (auto it = obj.begin(); it != obj.end(); ++it)
+    for (auto it = root.begin(); it != root.end(); ++it)
     {
-        if (it.value().isString())
-        {
-            m_customNames[it.key()] = it.value().toString();
+        SensorConfig config;
+        if (it.value().isObject()) {
+            QJsonObject sObj = it.value().toObject();
+            config.customName = sObj["name"].toString();
+            config.color = sObj["color"].toString("#1A1A1A");
+            config.isBold = sObj["isBold"].toBool(false);
+        } else if (it.value().isString()) {
+            // Support legacy format
+            config.customName = it.value().toString();
+            config.color = "#1A1A1A";
+            config.isBold = false;
         }
+        m_configs[it.key()] = config;
     }
 
     return true;
@@ -87,20 +111,22 @@ bool SensorNameManager::loadFromFile()
 bool SensorNameManager::saveToFile()
 {
     QFile file(getConfigPath());
-
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
-        qWarning() << "SensorNameManager: Failed to open config file for writing:" << getConfigPath();
         return false;
     }
 
-    QJsonObject obj;
-    for (auto it = m_customNames.begin(); it != m_customNames.end(); ++it)
+    QJsonObject root;
+    for (auto it = m_configs.begin(); it != m_configs.end(); ++it)
     {
-        obj[it.key()] = it.value();
+        QJsonObject sObj;
+        sObj["name"] = it.value().customName;
+        sObj["color"] = it.value().color;
+        sObj["isBold"] = it.value().isBold;
+        root[it.key()] = sObj;
     }
 
-    QJsonDocument doc(obj);
+    QJsonDocument doc(root);
     file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
 

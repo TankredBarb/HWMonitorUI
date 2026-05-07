@@ -33,6 +33,10 @@ QVariant SensorModel::data(const QModelIndex &index, int role) const
         return item.base.type;
     case DeviceIdRole:
         return item.base.deviceId;
+    case ColorRole:
+        return item.color;
+    case BoldRole:
+        return item.isBold;
     case ObjectRole: {
         QVariantMap map;
         map.insert("id", item.uniqueId);
@@ -41,6 +45,8 @@ QVariant SensorModel::data(const QModelIndex &index, int role) const
         map.insert("unit", item.base.unit);
         map.insert("type", item.base.type);
         map.insert("deviceId", item.base.deviceId);
+        map.insert("color", item.color);
+        map.insert("isBold", item.isBold);
         return map;
     }
     case Qt::DisplayRole:
@@ -60,12 +66,13 @@ QHash<int, QByteArray> SensorModel::roleNames() const
     roles[TypeRole] = "type";
     roles[DeviceIdRole] = "deviceId";
     roles[ObjectRole] = "sensorData";
+    roles[ColorRole] = "color";
+    roles[BoldRole] = "isBold";
     return roles;
 }
 
 void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameManager *nameManager)
 {
-    // If model is empty, just fill it
     if (m_sensors.isEmpty())
     {
         beginResetModel();
@@ -75,28 +82,21 @@ void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameMana
             item.base = s;
             item.uniqueId = s.deviceId + "::" + s.sensorName;
             item.displayName = nameManager ? nameManager->getDisplayName(item.uniqueId, s.sensorName) : s.sensorName;
+            item.color = nameManager ? nameManager->getSensorColor(item.uniqueId) : "#1A1A1A";
+            item.isBold = nameManager ? nameManager->getSensorBold(item.uniqueId) : false;
             m_sensors.append(item);
         }
         endResetModel();
         return;
     }
 
-    // Smart update: keep items and update values
-    // We assume the set of sensors is relatively stable.
-    // If a sensor is added or removed, we will handle it via beginInsertRows/beginRemoveRows
-    // to keep delegates alive.
-
-    // 1. Map current sensors for quick lookup
     QHash<QString, int> currentIdMap;
     for (int i = 0; i < m_sensors.size(); ++i)
     {
         currentIdMap.insert(m_sensors[i].uniqueId, i);
     }
 
-    // 2. Prepare new list and identify changes
     QList<InternalSensorData> nextSensors;
-    QSet<QString> processedIds;
-
     bool structureChanged = false;
 
     for (const auto &s : newSensors) {
@@ -105,8 +105,9 @@ void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameMana
         item.base = s;
         item.uniqueId = uid;
         item.displayName = nameManager ? nameManager->getDisplayName(uid, s.sensorName) : s.sensorName;
+        item.color = nameManager ? nameManager->getSensorColor(uid) : "#1A1A1A";
+        item.isBold = nameManager ? nameManager->getSensorBold(uid) : false;
         nextSensors.append(item);
-        processedIds.insert(uid);
 
         if (!currentIdMap.contains(uid)) structureChanged = true;
     }
@@ -115,23 +116,18 @@ void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameMana
 
     if (structureChanged)
     {
-        // If structure changed, for now we reset, but we could do fine-grained updates.
-        // Usually HW sensors don't change their set during runtime unless hardware is hot-plugged.
-        // Let's check if it's just a shuffle.
         beginResetModel();
         m_sensors = nextSensors;
         endResetModel();
     }
     else
     {
-        // Same set of sensors, maybe different order or just values
         for (int i = 0; i < nextSensors.size(); ++i)
         {
             const auto &newS = nextSensors[i];
             int oldIndex = currentIdMap.value(newS.uniqueId, -1);
             
             if (oldIndex != -1) {
-                // Update existing item at oldIndex
                 bool changed = false;
                 QVector<int> roles;
 
@@ -145,6 +141,18 @@ void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameMana
                 {
                     m_sensors[oldIndex].displayName = newS.displayName;
                     roles << NameRole;
+                    changed = true;
+                }
+                if (m_sensors[oldIndex].color != newS.color)
+                {
+                    m_sensors[oldIndex].color = newS.color;
+                    roles << ColorRole;
+                    changed = true;
+                }
+                if (m_sensors[oldIndex].isBold != newS.isBold)
+                {
+                    m_sensors[oldIndex].isBold = newS.isBold;
+                    roles << BoldRole;
                     changed = true;
                 }
 

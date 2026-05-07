@@ -9,14 +9,16 @@ Popup {
     parent: mainWindow.contentItem
     anchors.centerIn: parent
     width: 340
-    height: 340
+    height: 350
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     property var currentSensor: null
     property string customSensorName: ""
+    property string customColor: "#1A1A1A"
+    property bool customBold: false
     property alias currentInputText: nameInput.text
 
-    signal saveRequested()
+    signal saveRequested(string name, string color, bool isBold)
 
     background: Rectangle {
         color: "#FFFFFF"
@@ -31,8 +33,9 @@ Popup {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 20
-        spacing: 20
+        spacing: 12
 
+        // Header
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
@@ -45,17 +48,17 @@ Popup {
                     if (currentSensor.type === "Load") return "📊";
                     return "⚡";
                 }
-                font.pixelSize: 28
+                font.pixelSize: 24
             }
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 1
 
                 Text {
-                    text: "Edit Sensor Name"
+                    text: "Sensor Settings"
                     font.family: "Segoe UI"
-                    font.pixelSize: 16
+                    font.pixelSize: 15
                     font.weight: Font.Bold
                     color: "#1A1A1A"
                 }
@@ -63,7 +66,7 @@ Popup {
                 Text {
                     text: currentSensor ? currentSensor.name : ""
                     font.family: "Segoe UI"
-                    font.pixelSize: 11
+                    font.pixelSize: 10
                     color: "#666666"
                     elide: Text.ElideRight
                 }
@@ -73,96 +76,140 @@ Popup {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 1
-            color: "#E0E0E0"
+            color: "#F0F0F0"
         }
 
+        // Custom Name Input
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 6
-
-            Text {
-                text: "Current Value"
-                font.family: "Segoe UI"
-                font.pixelSize: 11
-                color: "#666666"
-            }
-
-            Text {
-                text: currentSensor ? (Number(currentSensor.value).toFixed(1) + " " + currentSensor.unit) : "--"
-                font.family: "Segoe UI"
-                font.pixelSize: 24
-                font.weight: Font.Bold
-                color: {
-                    if (!currentSensor) return "#1A1A1A";
-                    if (currentSensor.type === "Temperature" || currentSensor.type === "Load") {
-                        if (currentSensor.value > 85) return "#D32F2F";
-                        if (currentSensor.value > 70) return "#F57C00";
-                        return "#388E3C";
-                    }
-                    return "#1976D2";
-                }
-            }
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 6
+            spacing: 4
 
             Text {
                 text: "Custom Name"
                 font.family: "Segoe UI"
                 font.pixelSize: 11
-                color: "#666666"
+                color: "#888888"
             }
 
             TextField {
                 id: nameInput
                 Layout.fillWidth: true
-                placeholderText: "Enter custom name (English or Russian)"
+                placeholderText: "Enter custom name"
                 text: root.customSensorName
                 font.family: "Segoe UI"
                 font.pixelSize: 13
                 color: "#1A1A1A"
                 selectByMouse: true
-                validator: RegularExpressionValidator { regularExpression: /.{0,50}/ }
 
                 background: Rectangle {
-                    color: "#FFFFFF"
+                    color: "#F8F9FA"
                     radius: 8
-                    border.color: nameInput.activeFocus ? "#1976D2" : "#D0D0D0"
+                    border.color: nameInput.activeFocus ? "#007AFF" : "#E0E0E0"
                     border.width: 1
                 }
-
-                placeholderTextColor: "#9E9E9E"
-                selectionColor: "#1976D2"
-                selectedTextColor: "#FFFFFF"
-
-                onAccepted: root.saveRequested()
+                onAccepted: root.saveRequested(nameInput.text, root.customColor, root.customBold)
             }
         }
 
+        // Text Style (Styled CheckBox)
         RowLayout {
             Layout.fillWidth: true
-            Layout.topMargin: 8
-            spacing: 10
+            spacing: 8
+            
+            CheckBox {
+                id: boldCheck
+                checked: root.customBold
+                onCheckedChanged: root.customBold = checked
+                
+                indicator: Rectangle {
+                    implicitWidth: 18
+                    implicitHeight: 18
+                    x: boldCheck.leftPadding
+                    y: parent.height / 2 - height / 2
+                    radius: 4
+                    border.color: boldCheck.checked ? "#007AFF" : "#C0C0C0"
+                    color: boldCheck.checked ? "#007AFF" : "white"
 
-            Item { Layout.fillWidth: true }
+                    Rectangle {
+                        width: 10; height: 10
+                        x: 4; y: 4
+                        radius: 2
+                        color: "white"
+                        visible: boldCheck.checked
+                    }
+                }
+
+                contentItem: Text {
+                    text: "Bold Font Style"
+                    font.family: "Segoe UI"
+                    font.pixelSize: 13
+                    font.weight: root.customBold ? Font.Bold : Font.Normal
+                    color: "#333333"
+                    leftPadding: boldCheck.indicator.width + 8
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+        }
+
+        // Color Picker
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            Text {
+                text: "Label Color"
+                font.family: "Segoe UI"
+                font.pixelSize: 11
+                color: "#888888"
+            }
+
+            Row {
+                spacing: 10
+                property var colors: ["#1A1A1A", "#D32F2F", "#1976D2", "#388E3C", "#F57C00", "#7B1FA2", "#455A64"]
+                
+                Repeater {
+                    model: parent.colors
+                    Rectangle {
+                        width: 26; height: 26; radius: 13
+                        color: modelData
+                        border.color: root.customColor === modelData ? "#007AFF" : "transparent"
+                        border.width: 2
+                        
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: root.customColor = modelData
+                        }
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 6; height: 6; radius: 3; color: "white"
+                            visible: root.customColor === modelData
+                        }
+                    }
+                }
+            }
+        }
+
+        Item { Layout.fillHeight: true; Layout.maximumHeight: 10 } // Уменьшаем пустое пространство
+
+        // Action Buttons
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
 
             Button {
                 text: "Cancel"
-                font.family: "Segoe UI"
-                font.pixelSize: 12
-                implicitWidth: 90
+                Layout.fillWidth: true
                 implicitHeight: 36
                 background: Rectangle {
-                    color: parent.pressed ? "#E0E0E0" : "#F5F5F5"
+                    color: parent.pressed ? "#D32F2F" : (parent.hovered ? "#FFEBEE" : "#FFFFFF")
                     radius: 8
-                    border.color: "#D0D0D0"
-                    border.width: 1
+                    border.color: parent.hovered ? "#D32F2F" : "#D0D0D0"
                 }
                 contentItem: Text {
                     text: parent.text
-                    color: "#666666"
+                    color: parent.pressed ? "white" : (parent.hovered ? "#D32F2F" : "#666666")
+                    font.weight: parent.hovered ? Font.Bold : Font.Normal
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -171,21 +218,20 @@ Popup {
 
             Button {
                 text: "Save"
-                font.family: "Segoe UI"
-                font.pixelSize: 12
-                implicitWidth: 90
+                Layout.fillWidth: true
                 implicitHeight: 36
                 background: Rectangle {
-                    color: parent.pressed ? "#1565C0" : "#1976D2"
+                    color: parent.pressed ? "#005BBF" : "#007AFF"
                     radius: 8
                 }
                 contentItem: Text {
                     text: parent.text
                     color: "#FFFFFF"
+                    font.weight: Font.Bold
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                onClicked: root.saveRequested()
+                onClicked: root.saveRequested(nameInput.text, root.customColor, root.customBold)
             }
         }
     }
@@ -193,6 +239,8 @@ Popup {
     function openDialog(sensor) {
         currentSensor = sensor
         customSensorName = sensor.name
+        customColor = sensor.color || "#1A1A1A"
+        customBold = sensor.isBold || false
         nameInput.text = customSensorName
         open()
         nameInput.forceActiveFocus()

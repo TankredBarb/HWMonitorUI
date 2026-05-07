@@ -226,10 +226,9 @@ Window {
 
     SensorEditorPopup {
         id: sensorEditorPopup
-        onSaveRequested: {
+        onSaveRequested: (name, color, isBold) => {
             if (sensorEditorPopup.currentSensor) {
-                var newName = sensorEditorPopup.currentInputText.trim();
-                sensorNameManager.saveSensorName(sensorEditorPopup.currentSensor.id, newName);
+                sensorNameManager.saveSensorConfig(sensorEditorPopup.currentSensor.id, name.trim(), color, isBold);
                 sensorEditorPopup.close();
             }
         }
