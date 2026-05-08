@@ -16,6 +16,17 @@ set(QT_LIBS
     Qt${QT_VERSION_MAJOR}::Network
 )
 
+set(QML_SOURCES
+    main.qml
+    HardwareInfoCard.qml
+    SensorCard.qml
+    SensorEditorPopup.qml
+    SensorGauge.qml
+    StatusFooter.qml
+    TransparencyMenu.qml
+    ExpertJsonView.qml
+)
+
 set(PROJECT_SOURCES
     main.cpp
     lhmClient.cpp
@@ -30,6 +41,7 @@ set(PROJECT_SOURCES
     SensorModel.cpp
     ApplicationController.h
     ApplicationController.cpp
+    ${QML_SOURCES}
 )
 
 

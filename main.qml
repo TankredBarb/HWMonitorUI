@@ -16,18 +16,16 @@ Window {
     property bool isTransparent: false
     property real transparencyValue: 0.5
     property bool isOverlay: false
+    property bool showUpdateFlash: true
     property var hardwareInfo: ({})
     property int connectionState: 0
     property string connectionStatusText: "Disconnected"
     property int gridSpacing: 10
 
     // --- Window State Helpers ---
-    property int oldX: x
-    property int oldY: y
-    property int oldWidth: width
-    property int oldHeight: height
+    property var normalGeometry: ({ "x": x, "y": y, "width": width, "height": height })
 
-    opacity: isTransparent ? (mouseInteraction.containsMouse ? 0.8 : transparencyValue) : 1.0
+    opacity: isTransparent ? transparencyValue : 1.0
 
     Behavior on opacity {
         NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -36,43 +34,45 @@ Window {
     // --- Timers & Signals ---
     Timer {
         id: restoreTimer
-        interval: 50
+        interval: 120
         repeat: false
-        onTriggered: {
-            mainWindow.x = mainWindow.oldX
-            mainWindow.y = mainWindow.oldY
-            mainWindow.width = mainWindow.oldWidth
-            mainWindow.height = mainWindow.oldHeight
-        }
+        onTriggered: mainWindow.restoreNormalGeometry()
     }
 
     signal reconnectClicked()
 
-    // --- Mouse Handling ---
-    MouseArea {
-        id: mouseInteraction
-        anchors.fill: parent
-        hoverEnabled: true
-        enabled: mainWindow.isOverlay
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        
-        property point lastMousePos: Qt.point(0, 0)
-        
-        onPressed: (mouse) => { 
-            if (mouse.button === Qt.LeftButton) lastMousePos = Qt.point(mouse.x, mouse.y) 
+    function saveNormalGeometry() {
+        normalGeometry = {
+            "x": mainWindow.x,
+            "y": mainWindow.y,
+            "width": mainWindow.width,
+            "height": mainWindow.height
         }
-        
-        onPositionChanged: (mouse) => {
-            if (pressed && mouse.button === Qt.LeftButton) {
-                var delta = Qt.point(mouse.x - lastMousePos.x, mouse.y - lastMousePos.y)
-                mainWindow.x += delta.x
-                mainWindow.y += delta.y
-            }
-        }
+    }
 
-        onClicked: (mouse) => {
-            if (mouse.button === Qt.RightButton) {
-                contextMenu.popup()
+    function restoreNormalGeometry() {
+        mainWindow.x = normalGeometry.x
+        mainWindow.y = normalGeometry.y
+        mainWindow.width = normalGeometry.width
+        mainWindow.height = normalGeometry.height
+    }
+
+    // --- Mouse Handling ---
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: contextMenu.popup()
+    }
+
+    DragHandler {
+        id: overlayMoveHandler
+        enabled: mainWindow.isOverlay
+        target: null
+        acceptedButtons: Qt.LeftButton
+        acceptedModifiers: Qt.ShiftModifier
+
+        onActiveChanged: {
+            if (active) {
+                mainWindow.startSystemMove()
             }
         }
     }
@@ -105,59 +105,113 @@ Window {
             Behavior on opacity { NumberAnimation { duration: 200 } }
         }
 
-        ScrollView {
+        GridView {
+            id: sensorGrid
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             visible: connectionState === 2
-            ScrollBar.vertical.policy: ScrollBar.AsNeeded
+            ScrollBar.vertical: ScrollBar {
+                id: sensorScrollBar
+                policy: ScrollBar.AsNeeded
+                width: 6
+                padding: 1
 
-            GridView {
-                id: sensorGrid
-                anchors.fill: parent
-                cellWidth: (sensorGrid.width - mainWindow.gridSpacing) / 2
-                cellHeight: 85
-                model: sensorModel
-                cacheBuffer: 1000
-                reuseItems: true
-                delegate: SensorCard {
-                    width: sensorGrid.cellWidth
-                    height: sensorGrid.cellHeight
-                    sensorData: model.sensorData
-                    onClicked: sensorEditorPopup.openDialog(model.sensorData)
+                background: Rectangle {
+                    color: "transparent"
                 }
+
+                contentItem: Rectangle {
+                    implicitWidth: 4
+                    radius: 2
+                    color: sensorScrollBar.hovered || sensorScrollBar.pressed ? "#94A3B8" : "#CBD5E1"
+                    opacity: sensorScrollBar.size < 1.0 ? 1.0 : 0.0
+                    Behavior on color { ColorAnimation { duration: 140 } }
+                    Behavior on opacity { NumberAnimation { duration: 140 } }
+                }
+            }
+            property int columnCount: 2
+            property int rowCount: Math.max(1, Math.ceil(count / columnCount))
+            property real dynamicCellHeight: (height - mainWindow.gridSpacing * (rowCount - 1)) / rowCount
+            cellWidth: (sensorGrid.width - mainWindow.gridSpacing) / columnCount
+            cellHeight: Math.max(85, Math.min(135, dynamicCellHeight))
+            model: sensorModel
+            cacheBuffer: 1000
+            reuseItems: true
+            delegate: SensorCard {
+                width: sensorGrid.cellWidth
+                height: sensorGrid.cellHeight
+                sensorData: model.sensorData
+                showUpdateFlash: mainWindow.showUpdateFlash
+                onClicked: sensorEditorPopup.openDialog(model.sensorData)
             }
         }
 
         // Connection Status Message
-        Text {
-            Layout.alignment: Qt.AlignCenter
+        Rectangle {
             Layout.fillWidth: true
-            text: {
-                if (connectionState === 3) return "Connection Error - hwmonitor may not be running";
-                if (connectionState === 0) return "Disconnected - Click Reconnect to try again";
-                if (connectionState === 1) return "Connecting...";
-                return "";
-            }
-            color: connectionState === 3 ? "#F44336" : (connectionState === 0 ? "#9E9E9E" : "#FFA000")
-            font.pixelSize: 13
-            font.weight: Font.Medium
+            Layout.preferredHeight: 72
             visible: connectionState !== 2
-            wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
+            radius: 8
+            color: connectionState === 3 ? "#FEF3F2" : (connectionState === 1 ? "#FFFAEB" : "#F8FAFC")
+            border.color: connectionState === 3 ? "#D92D20" : (connectionState === 1 ? "#F79009" : "#D9DEE7")
+            border.width: 1
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 10
+
+                Rectangle {
+                    Layout.preferredWidth: 8
+                    Layout.preferredHeight: 8
+                    radius: 4
+                    color: connectionState === 3 ? "#D92D20" : (connectionState === 1 ? "#F79009" : "#667085")
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: connectionState === 3 ? "Connection Error" : (connectionState === 1 ? "Connecting" : "Disconnected")
+                        color: connectionState === 3 ? "#D92D20" : (connectionState === 1 ? "#F79009" : "#344054")
+                        font.family: "Segoe UI"
+                        font.pixelSize: 13
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: {
+                            if (connectionState === 3) return "hwmonitor may not be running";
+                            if (connectionState === 0) return "Use Reconnect to try again";
+                            if (connectionState === 1) return "Waiting for sensor data";
+                            return "";
+                        }
+                        color: "#667085"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+                }
+            }
         }
 
         // Footer Section
         StatusFooter {
             isOverlay: mainWindow.isOverlay
             isTransparent: mainWindow.isTransparent
+            showUpdateFlash: mainWindow.showUpdateFlash
             connectionState: mainWindow.connectionState
             connectionStatusText: mainWindow.connectionStatusText
             
             onOverlayToggled: {
                 if (!mainWindow.isOverlay) {
-                    mainWindow.oldX = mainWindow.x; mainWindow.oldY = mainWindow.y
-                    mainWindow.oldWidth = mainWindow.width; mainWindow.oldHeight = mainWindow.height
+                    mainWindow.saveNormalGeometry()
                     mainWindow.isOverlay = true
                     mainWindow.flags = Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                 } else {
@@ -167,10 +221,10 @@ Window {
                 }
             }
             onTransparencyToggled: mainWindow.isTransparent = !mainWindow.isTransparent
+            onUpdateFlashToggled: mainWindow.showUpdateFlash = !mainWindow.showUpdateFlash
             onReconnectClicked: mainWindow.reconnectClicked()
         }
 
-        Item { Layout.fillHeight: true; visible: connectionState === 2 }
     }
 
     // --- Sub-components & Popups ---
