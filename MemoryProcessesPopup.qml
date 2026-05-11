@@ -120,7 +120,7 @@ Window {
                         Rectangle {
                             Layout.preferredHeight: 22
                             Layout.preferredWidth: 140
-                            color: "#F5F3FF"
+                            color: "#e3d3ea"
                             radius: 11
                             Text {
                                 anchors.centerIn: parent
@@ -128,6 +128,7 @@ Window {
                                 font.pixelSize: 11
                                 font.weight: Font.Bold
                                 color: "#6D28D9"
+
                             }
                         }
                     }
