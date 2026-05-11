@@ -10,6 +10,7 @@
 #include "SensorNameManager.h"
 #include "SensorModel.h"
 #include "ProcessMonitor.h"
+#include "ProcessIconProvider.h"
 
 class ApplicationController : public QObject
 {
@@ -18,23 +19,27 @@ class ApplicationController : public QObject
     Q_PROPERTY(QVariantList cpuProcesses READ cpuProcesses NOTIFY cpuProcessesChanged)
     Q_PROPERTY(QVariantList memoryProcesses READ memoryProcesses NOTIFY memoryProcessesChanged)
     Q_PROPERTY(double totalRamMb READ totalRamMb NOTIFY memoryProcessesChanged)
+    Q_PROPERTY(double usedRamMb READ usedRamMb NOTIFY memoryProcessesChanged)
     Q_PROPERTY(QString cpuProcessError READ cpuProcessError NOTIFY cpuProcessErrorChanged)
 
 public:
-    explicit ApplicationController(QObject *parent = nullptr);
+    explicit     ApplicationController(QObject *parent = nullptr);
     ~ApplicationController();
 
     bool initialize();
     int exec();
+    ProcessIconProvider *iconProvider() const { return m_iconProvider; }
 
     QString rawJson() const { return m_rawJson; }
     QVariantList cpuProcesses() const { return m_cpuProcesses; }
     QVariantList memoryProcesses() const { return m_memoryProcesses; }
     double totalRamMb() { return m_processMonitor.getTotalRamMb(); }
+    double usedRamMb() { return m_processMonitor.getUsedRamMb(); }
     QString cpuProcessError() const { return m_cpuProcessError; }
 
     Q_INVOKABLE void refreshCpuProcesses();
     Q_INVOKABLE void refreshMemoryProcesses();
+    Q_INVOKABLE void notifyExpandedChanged(int delta);
 
 signals:
     void rawJsonChanged();
@@ -64,6 +69,8 @@ private:
     QString m_rawJson;
     QVariantList m_cpuProcesses;
     QVariantList m_memoryProcesses;
+    ProcessIconProvider *m_iconProvider;
     QString m_cpuProcessError;
+    int m_expandedCount = 0;
 };
 

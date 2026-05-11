@@ -20,7 +20,8 @@ QVariant SensorModel::data(const QModelIndex &index, int role) const
 
     const auto &item = m_sensors.at(index.row());
 
-    switch (role) {
+    switch (role)
+    {
     case IdRole:
         return item.uniqueId;
     case NameRole:
@@ -37,7 +38,8 @@ QVariant SensorModel::data(const QModelIndex &index, int role) const
         return item.color;
     case BoldRole:
         return item.isBold;
-    case ObjectRole: {
+    case ObjectRole:
+    {
         QVariantMap map;
         map.insert("id", item.uniqueId);
         map.insert("name", item.displayName);
@@ -99,7 +101,8 @@ void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameMana
     QList<InternalSensorData> nextSensors;
     bool structureChanged = false;
 
-    for (const auto &s : newSensors) {
+    for (const auto &s : newSensors)
+    {
         QString uid = s.deviceId + "::" + s.sensorName;
         InternalSensorData item;
         item.base = s;
@@ -127,7 +130,8 @@ void SensorModel::updateData(const QList<SensorData> &newSensors, SensorNameMana
             const auto &newS = nextSensors[i];
             int oldIndex = currentIdMap.value(newS.uniqueId, -1);
             
-            if (oldIndex != -1) {
+            if (oldIndex != -1)
+            {
                 bool changed = false;
                 QVector<int> roles;
 

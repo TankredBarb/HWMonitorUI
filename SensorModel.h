@@ -11,7 +11,8 @@ class SensorModel : public QAbstractListModel
     Q_OBJECT
 
 public:
-    enum SensorRoles {
+    enum SensorRoles
+    {
         IdRole = Qt::UserRole + 1,
         NameRole,
         ValueRole,
@@ -32,7 +33,8 @@ public:
     void updateData(const QList<SensorData> &newSensors, SensorNameManager *nameManager);
 
 private:
-    struct InternalSensorData {
+    struct InternalSensorData
+    {
         SensorData base;
         QString displayName;
         QString uniqueId;

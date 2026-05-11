@@ -26,13 +26,23 @@ class ISensorProvider : public QObject
     Q_OBJECT
 
 public:
-    explicit ISensorProvider(QObject *parent = nullptr) : QObject(parent) {}
+    explicit ISensorProvider(QObject *parent = nullptr) : QObject(parent)
+    {
+    }
     virtual ~ISensorProvider() = default;
 
     virtual void fetchData() = 0;
-    virtual void reconnect() {}
+    virtual void reconnect()
+    {
+    }
 
-    enum class ConnectionState { Disconnected, Connecting, Connected, Error };
+    enum class ConnectionState
+    {
+        Disconnected,
+        Connecting,
+        Connected,
+        Error
+    };
     Q_ENUM(ConnectionState)
 
 signals:

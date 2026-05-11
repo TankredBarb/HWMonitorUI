@@ -91,12 +91,15 @@ bool SensorNameManager::loadFromFile()
     for (auto it = root.begin(); it != root.end(); ++it)
     {
         SensorConfig config;
-        if (it.value().isObject()) {
+        if (it.value().isObject())
+        {
             QJsonObject sObj = it.value().toObject();
             config.customName = sObj["name"].toString();
             config.color = sObj["color"].toString("#1A1A1A");
             config.isBold = sObj["isBold"].toBool(false);
-        } else if (it.value().isString()) {
+        }
+        else if (it.value().isString())
+        {
             // Support legacy format
             config.customName = it.value().toString();
             config.color = "#1A1A1A";

@@ -13,7 +13,8 @@ class SensorNameManager : public QObject
 {
     Q_OBJECT
 public:
-    struct SensorConfig {
+    struct SensorConfig
+    {
         QString customName;
         QString color = "#1A1A1A";
         bool isBold = false;

@@ -11,29 +11,43 @@
 #include <psapi.h>
 #endif
 
-struct ProcessInfo {
+struct PerPidInfo
+{
     uint32_t pid;
-    QString name;
     double cpuUsage;
     double workingSetMb;
     double privateBytesMb;
-    QList<uint32_t> multiPids;
 };
 
-class ProcessMonitor : public QObject {
+struct ProcessInfo
+{
+    uint32_t pid;
+    QString name;
+    QString exePath;
+    double cpuUsage;
+    double workingSetMb;
+    double privateBytesMb;
+    QList<PerPidInfo> multiPids;
+};
+
+class ProcessMonitor : public QObject
+{
     Q_OBJECT
 public:
     explicit ProcessMonitor(QObject *parent = nullptr);
     
     QVariantList getCpuProcesses();
     QVariantList getMemoryProcesses();
+    QMap<QString, QString> getExePathMap() const;
     double getTotalRamMb();
+    double getUsedRamMb();
     
     void update();
 
 private:
 #ifdef Q_OS_WIN
-    struct ProcessTimeInfo {
+    struct ProcessTimeInfo
+    {
         ULONGLONG lastTime;
         ULONGLONG lastSystemTime;
     };

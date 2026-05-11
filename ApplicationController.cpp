@@ -16,6 +16,7 @@ ApplicationController::ApplicationController(QObject *parent)
     , m_timer(nullptr)
     , m_processTimer(nullptr)
     , m_rootObject(nullptr)
+    , m_iconProvider(nullptr)
 {
 }
 
@@ -48,6 +49,9 @@ bool ApplicationController::initialize()
         qFatal("Unsupported platform");
         return false;
     }
+
+    m_iconProvider = new ProcessIconProvider();
+    m_engine.addImageProvider("processicon", m_iconProvider);
 
     m_engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
     if (m_engine.rootObjects().isEmpty())
@@ -97,6 +101,8 @@ void ApplicationController::updateProcesses()
     m_processMonitor.update();
     m_cpuProcesses = m_processMonitor.getCpuProcesses();
     m_memoryProcesses = m_processMonitor.getMemoryProcesses();
+    if (m_iconProvider)
+        m_iconProvider->updatePaths(m_processMonitor.getExePathMap());
     emit cpuProcessesChanged();
     emit memoryProcessesChanged();
 }
@@ -109,6 +115,18 @@ void ApplicationController::refreshCpuProcesses()
 void ApplicationController::refreshMemoryProcesses()
 {
     updateProcesses();
+}
+
+void ApplicationController::notifyExpandedChanged(int delta)
+{
+    m_expandedCount += delta;
+    if (m_expandedCount < 0)
+        m_expandedCount = 0;
+
+    if (m_expandedCount > 0)
+        m_processTimer->stop();
+    else
+        m_processTimer->start();
 }
 
 void ApplicationController::updateQmlData(const HardwareInfo &hw, const QList<SensorData> &sensors)

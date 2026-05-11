@@ -12,7 +12,10 @@ public:
     void fetchData() override;
 
 public slots:
-    void reconnect() override { /* No-op for Linux provider */ }
+    void reconnect() override
+    {
+        /* No-op for Linux provider */
+    }
 
 private:
     void readCpuInfo(HardwareInfo &hw);

@@ -41,6 +41,8 @@ set(PROJECT_SOURCES
     SensorModel.cpp
     ProcessMonitor.h
     ProcessMonitor.cpp
+    ProcessIconProvider.h
+    ProcessIconProvider.cpp
     ApplicationController.h
     ApplicationController.cpp
     ${QML_SOURCES}

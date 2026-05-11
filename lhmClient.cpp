@@ -197,7 +197,8 @@ void LhmClient::traverseJson(const QJsonArray &arr, QList<SensorData> &out, Hard
         }
 
         // Helper lambda to parse value
-        auto parseValue = [](const QString &raw) -> double {
+        auto parseValue = [](const QString &raw) -> double
+        {
             QString cleanNum = raw;
             cleanNum.remove(QRegularExpression("[^\\d,\\.]"));
             cleanNum.replace(',', '.');
