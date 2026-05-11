@@ -1,15 +1,15 @@
 <RCC>
     <qresource prefix="/">
-        <file>main.qml</file>
-        <file>hwmon.png</file>
-        <file>HardwareInfoCard.qml</file>
-        <file>SensorCard.qml</file>
-        <file>SensorEditorPopup.qml</file>
-        <file>SensorGauge.qml</file>
-        <file>StatusFooter.qml</file>
-        <file>TransparencyMenu.qml</file>
-        <file>ExpertJsonView.qml</file>
-        <file>CpuProcessesPopup.qml</file>
-        <file>MemoryProcessesPopup.qml</file>
+        <file>qml/main.qml</file>
+        <file>resources/hwmon.png</file>
+        <file>qml/HardwareInfoCard.qml</file>
+        <file>qml/SensorCard.qml</file>
+        <file>qml/SensorEditorPopup.qml</file>
+        <file>qml/SensorGauge.qml</file>
+        <file>qml/StatusFooter.qml</file>
+        <file>qml/TransparencyMenu.qml</file>
+        <file>qml/ExpertJsonView.qml</file>
+        <file>qml/CpuProcessesPopup.qml</file>
+        <file>qml/MemoryProcessesPopup.qml</file>
     </qresource>
 </RCC>

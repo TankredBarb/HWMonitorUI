@@ -16,48 +16,36 @@ set(QT_LIBS
     Qt${QT_VERSION_MAJOR}::Network
 )
 
-set(QML_SOURCES
-    main.qml
-    HardwareInfoCard.qml
-    SensorCard.qml
-    SensorEditorPopup.qml
-    SensorGauge.qml
-    StatusFooter.qml
-    TransparencyMenu.qml
-    ExpertJsonView.qml
-)
-
 set(PROJECT_SOURCES
-    main.cpp
-    lhmClient.cpp
-    lhmClient.h
-    iSensorProvider.h
-    linuxSysfsProvider.cpp
-    linuxSysfsProvider.h
+    src/main.cpp
+    src/lhmClient.cpp
+    include/lhmClient.h
+    include/iSensorProvider.h
+    src/linuxSysfsProvider.cpp
+    include/linuxSysfsProvider.h
+    include/SensorNameManager.h
+    src/SensorNameManager.cpp
+    include/SensorModel.h
+    src/SensorModel.cpp
+    include/ProcessMonitor.h
+    src/ProcessMonitor.cpp
+    include/ProcessIconProvider.h
+    src/ProcessIconProvider.cpp
+    include/ApplicationController.h
+    src/ApplicationController.cpp
     qml.qrc
-    SensorNameManager.h
-    SensorNameManager.cpp
-    SensorModel.h
-    SensorModel.cpp
-    ProcessMonitor.h
-    ProcessMonitor.cpp
-    ProcessIconProvider.h
-    ProcessIconProvider.cpp
-    ApplicationController.h
-    ApplicationController.cpp
-    ${QML_SOURCES}
 )
-
 
 if(WIN32)
     list(APPEND PROJECT_SOURCES
-        resources.rc
-        app.ico
+        resources/resources.rc
+        resources/app.ico
     )
 endif()
 
 add_executable(qthwmon ${PROJECT_SOURCES})
 
+target_include_directories(qthwmon PRIVATE include)
 target_link_libraries(qthwmon PRIVATE ${QT_LIBS})
 
 if(WIN32)

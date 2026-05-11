@@ -31,7 +31,7 @@ ApplicationController::~ApplicationController()
 bool ApplicationController::initialize()
 {
     QGuiApplication::setApplicationName("QtHwMonitor");
-    QGuiApplication::setWindowIcon(QIcon(":/hwmon.png"));
+    QGuiApplication::setWindowIcon(QIcon(":/resources/hwmon.png"));
 
     m_engine.rootContext()->setContextProperty("sensorNameManager", &m_nameManager);
     m_engine.rootContext()->setContextProperty("sensorModel", &m_sensorModel);
@@ -53,7 +53,7 @@ bool ApplicationController::initialize()
     m_iconProvider = new ProcessIconProvider();
     m_engine.addImageProvider("processicon", m_iconProvider);
 
-    m_engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    m_engine.load(QUrl(QStringLiteral("qrc:/qml/main.qml")));
     if (m_engine.rootObjects().isEmpty())
     {
         return false;
