@@ -23,21 +23,45 @@ Window {
         return "";
     }
 
+    opacity: 0
+
+    Behavior on opacity {
+        NumberAnimation { duration: 350; easing.type: Easing.OutCubic }
+    }
+
+    Timer {
+        id: showTimer
+        interval: 20
+        onTriggered: root.opacity = 1
+    }
+
+    Timer {
+        id: closeTimer
+        interval: 370
+        onTriggered: root.hide()
+    }
+
     function open() {
-        // Center relative to main window on screen
         root.x = mainWindow.x + (mainWindow.width - root.width) / 2
         root.y = mainWindow.y + (mainWindow.height - root.height) / 2
         root.show()
         root.requestActivate()
+        if (root.opacity === 0)
+            showTimer.start()
+        else
+            root.opacity = 1
     }
 
     function close() {
+        showTimer.stop()
+        closeTimer.stop()
         for (var i = 0; i < processList.count; i++) {
             var item = processList.itemAtIndex(i)
             if (item && item.expanded)
                 item.expanded = false
         }
-        root.hide()
+        root.opacity = 0
+        closeTimer.start()
     }
 
     property string lastUpdateTime: ""

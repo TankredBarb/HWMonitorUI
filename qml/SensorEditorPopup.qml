@@ -13,6 +13,14 @@ Popup {
     height: 326
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 350; easing.type: Easing.OutCubic }
+    }
+
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 300; easing.type: Easing.OutCubic }
+    }
+
     property var currentSensor: null
     property string customSensorName: ""
     property string customColor: "#1A1A1A"
