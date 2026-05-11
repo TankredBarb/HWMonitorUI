@@ -132,8 +132,8 @@ Window {
             property int columnCount: 2
             property int rowCount: Math.max(1, Math.ceil(count / columnCount))
             property real dynamicCellHeight: (height - mainWindow.gridSpacing * (rowCount - 1)) / rowCount
-            cellWidth: (sensorGrid.width - mainWindow.gridSpacing) / columnCount
-            cellHeight: Math.max(85, Math.min(135, dynamicCellHeight))
+            cellWidth: (sensorGrid.width - mainWindow.gridSpacing - (sensorScrollBar.visible ? sensorScrollBar.width + 2 : 0)) / columnCount
+            cellHeight: Math.min(135, dynamicCellHeight)
             model: sensorModel
             cacheBuffer: 1000
             reuseItems: true
