@@ -9,8 +9,8 @@ Window {
     title: "Qt Hardware Monitor"
     color: "#E5E9F0"
 
-    width: Math.max(320, Math.min(Screen.width * 0.2, 450))
-    height: Math.max(480, Math.min(Screen.height * 0.53, 700))
+    width: Math.max(320, Math.min(Screen.width * 0.2, 1200))
+    height: Math.max(480, Math.min(Screen.height * 0.53, 800))
 
     // --- State Properties ---
     property bool isTransparent: false
@@ -68,7 +68,6 @@ Window {
         enabled: mainWindow.isOverlay
         target: null
         acceptedButtons: Qt.LeftButton
-        acceptedModifiers: Qt.ShiftModifier
 
         onActiveChanged: {
             if (active) {
@@ -144,6 +143,31 @@ Window {
                 sensorData: model.sensorData
                 showUpdateFlash: mainWindow.showUpdateFlash
                 onClicked: sensorEditorPopup.openDialog(model.sensorData)
+                onMiddleClicked: {
+                    console.log("Middle clicked sensor: " + model.name + " (ID: " + model.deviceId + ", Type: " + model.type + ")");
+                    
+                    let nameLC = model.name.toLowerCase();
+                    let deviceLC = model.deviceId.toLowerCase();
+                    let typeLC = model.type ? model.type.toLowerCase() : "";
+
+                    let isCpu = nameLC.indexOf("cpu") !== -1 || 
+                                deviceLC.indexOf("cpu") !== -1 ||
+                                (typeLC === "load" && nameLC.indexOf("total") !== -1 && nameLC.indexOf("cpu") !== -1);
+                                
+                    let isMem = nameLC.indexOf("memory") !== -1 || 
+                                deviceLC.indexOf("ram") !== -1 ||
+                                deviceLC.indexOf("memory") !== -1 ||
+                                (typeLC === "load" && nameLC.indexOf("memory") !== -1);
+                    
+                    if (isCpu) {
+                        cpuProcessesPopup.open()
+                    } else if (isMem) {
+                        memoryProcessesPopup.open()
+                    }
+                }
+                onDoubleClicked: {
+                    // Reserved for future use or kept empty to avoid conflict
+                }
             }
         }
 
@@ -251,5 +275,13 @@ Window {
     Shortcut {
         sequences: ["Ctrl+Shift+J"]
         onActivated: expertJsonView.open()
+    }
+
+    CpuProcessesPopup {
+        id: cpuProcessesPopup
+    }
+
+    MemoryProcessesPopup {
+        id: memoryProcessesPopup
     }
 }

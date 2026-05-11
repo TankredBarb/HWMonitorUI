@@ -9,5 +9,7 @@
         <file>StatusFooter.qml</file>
         <file>TransparencyMenu.qml</file>
         <file>ExpertJsonView.qml</file>
+        <file>CpuProcessesPopup.qml</file>
+        <file>MemoryProcessesPopup.qml</file>
     </qresource>
 </RCC>

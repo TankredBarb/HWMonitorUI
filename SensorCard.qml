@@ -36,6 +36,8 @@ Rectangle {
     Behavior on color { ColorAnimation { duration: 150 } }
 
     signal clicked()
+    signal doubleClicked()
+    signal middleClicked()
 
     Component.onCompleted: {
         previousSensorValue = sensorValue
@@ -92,8 +94,16 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         onContainsMouseChanged: root.isHovered = containsMouse
-        onClicked: root.clicked()
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.MiddleButton) {
+                root.middleClicked()
+            } else {
+                root.clicked()
+            }
+        }
+        onDoubleClicked: root.doubleClicked()
     }
 
     Rectangle {

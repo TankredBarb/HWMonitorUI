@@ -190,33 +190,6 @@ RowLayout {
 
         Item { Layout.fillWidth: true }
 
-        Rectangle {
-            Layout.preferredWidth: 40
-            Layout.preferredHeight: 22
-            radius: 6
-            color: "#F8FBFF"
-            border.color: "#B9D9FF"
-            border.width: 1
-
-            Text {
-                anchors.centerIn: parent
-                text: "SHIFT"
-                font.family: "Segoe UI"
-                font.pixelSize: 9
-                font.weight: Font.Bold
-                color: "#007AFF"
-            }
-        }
-
-        Text {
-            text: "drag to move"
-            font.family: "Segoe UI"
-            font.pixelSize: 12
-            font.weight: Font.Bold
-            color: "#007AFF"
-            elide: Text.ElideRight
-        }
-
         Item { Layout.fillWidth: true }
     }
 

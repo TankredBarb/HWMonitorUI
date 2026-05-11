@@ -14,6 +14,7 @@ ApplicationController::ApplicationController(QObject *parent)
     : QObject(parent)
     , m_provider(nullptr)
     , m_timer(nullptr)
+    , m_processTimer(nullptr)
     , m_rootObject(nullptr)
 {
 }
@@ -63,10 +64,19 @@ bool ApplicationController::initialize()
     connect(m_provider, &ISensorProvider::connectionStateChanged, this, &ApplicationController::onConnectionStateChanged);
     connect(m_rootObject, SIGNAL(reconnectClicked()), m_provider, SLOT(reconnect()));
 
-    // Setup timer for periodic updates
+    // Setup timer for periodic sensor updates
     m_timer = new QTimer(this);
     m_timer->setInterval(2000);
     connect(m_timer, &QTimer::timeout, m_provider, &ISensorProvider::fetchData);
+
+    // Setup timer for process monitoring (every 1 second as requested)
+    m_processTimer = new QTimer(this);
+    m_processTimer->setInterval(1000);
+    connect(m_processTimer, &QTimer::timeout, this, &ApplicationController::updateProcesses);
+    m_processTimer->start();
+
+    // Initial process update
+    updateProcesses();
 
     return true;
 }
@@ -80,6 +90,25 @@ int ApplicationController::exec()
     }
 
     return QGuiApplication::instance()->exec();
+}
+
+void ApplicationController::updateProcesses()
+{
+    m_processMonitor.update();
+    m_cpuProcesses = m_processMonitor.getCpuProcesses();
+    m_memoryProcesses = m_processMonitor.getMemoryProcesses();
+    emit cpuProcessesChanged();
+    emit memoryProcessesChanged();
+}
+
+void ApplicationController::refreshCpuProcesses()
+{
+    updateProcesses();
+}
+
+void ApplicationController::refreshMemoryProcesses()
+{
+    updateProcesses();
 }
 
 void ApplicationController::updateQmlData(const HardwareInfo &hw, const QList<SensorData> &sensors)

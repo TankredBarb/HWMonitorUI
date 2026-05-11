@@ -39,6 +39,8 @@ set(PROJECT_SOURCES
     SensorNameManager.cpp
     SensorModel.h
     SensorModel.cpp
+    ProcessMonitor.h
+    ProcessMonitor.cpp
     ApplicationController.h
     ApplicationController.cpp
     ${QML_SOURCES}
@@ -58,4 +60,5 @@ target_link_libraries(qthwmon PRIVATE ${QT_LIBS})
 
 if(WIN32)
     set_target_properties(qthwmon PROPERTIES WIN32_EXECUTABLE ON)
+    target_link_libraries(qthwmon PRIVATE psapi)
 endif()
