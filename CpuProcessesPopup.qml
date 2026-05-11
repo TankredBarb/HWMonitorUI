@@ -17,13 +17,7 @@ Window {
     property int cpuColWidth: 85
     property int memoryColWidth: 110
 
-    property real totalCpu: {
-        let total = 0;
-        for (let i = 0; i < appController.cpuProcesses.length; i++) {
-            total += appController.cpuProcesses[i].cpu;
-        }
-        return total;
-    }
+    property real totalCpu: appController.totalCpuUsage
 
     function open() {
         // Center relative to main window on screen
@@ -57,6 +51,14 @@ Window {
         border.color: "#D9DEE7"
         border.width: 1
 
+        DragHandler {
+            target: null
+            acceptedButtons: Qt.LeftButton
+            onActiveChanged: {
+                if (active) root.startSystemMove()
+            }
+        }
+
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 14
@@ -65,14 +67,6 @@ Window {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-
-                DragHandler {
-                    target: null
-                    onTranslationChanged: (delta) => {
-                        root.x += delta.x
-                        root.y += delta.y
-                    }
-                }
 
                 Rectangle {
                     Layout.preferredWidth: 38
@@ -251,7 +245,7 @@ Window {
                                     height: 28
                                     radius: 6
                                     property bool hovered: false
-                                    color: expanded ? "#EEF2F6" : (hovered ? "#FFCCCC" : (index % 2 === 0 ? "#FCFDFF" : "#F8FAFC"))
+                                    color: expanded ? "#EEF2F6" : (hovered ? "#E0F2FE" : (index % 2 === 0 ? "#FCFDFF" : "#F8FAFC"))
                                     border.color: expanded ? "#2F80ED" : "#EEF2F6"
                                     border.width: 1
 

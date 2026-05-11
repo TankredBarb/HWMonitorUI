@@ -42,6 +42,7 @@ public:
     double getTotalRamMb();
     double getUsedRamMb();
     
+    double getTotalCpuUsage() const { return m_totalCpuUsage; }
     void update();
 
 private:
@@ -53,6 +54,8 @@ private:
     };
     QMap<uint32_t, ProcessTimeInfo> m_processTimeMap;
     ULONGLONG m_lastSystemTime = 0;
+    ULONGLONG m_lastIdleTime = 0;
+    double m_totalCpuUsage = 0.0;
 #endif
 
     QList<ProcessInfo> m_processes;

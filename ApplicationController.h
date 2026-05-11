@@ -21,6 +21,7 @@ class ApplicationController : public QObject
     Q_PROPERTY(double totalRamMb READ totalRamMb NOTIFY memoryProcessesChanged)
     Q_PROPERTY(double usedRamMb READ usedRamMb NOTIFY memoryProcessesChanged)
     Q_PROPERTY(QString cpuProcessError READ cpuProcessError NOTIFY cpuProcessErrorChanged)
+    Q_PROPERTY(double totalCpuUsage READ totalCpuUsage NOTIFY cpuProcessesChanged)
 
 public:
     explicit     ApplicationController(QObject *parent = nullptr);
@@ -36,6 +37,7 @@ public:
     double totalRamMb() { return m_processMonitor.getTotalRamMb(); }
     double usedRamMb() { return m_processMonitor.getUsedRamMb(); }
     QString cpuProcessError() const { return m_cpuProcessError; }
+    double totalCpuUsage() const { return m_processMonitor.getTotalCpuUsage(); }
 
     Q_INVOKABLE void refreshCpuProcesses();
     Q_INVOKABLE void refreshMemoryProcesses();

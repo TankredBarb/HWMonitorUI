@@ -56,6 +56,14 @@ Window {
         border.color: "#D9DEE7"
         border.width: 1
 
+        DragHandler {
+            target: null
+            acceptedButtons: Qt.LeftButton
+            onActiveChanged: {
+                if (active) root.startSystemMove()
+            }
+        }
+
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 14
@@ -64,14 +72,6 @@ Window {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-
-                DragHandler {
-                    target: null
-                    onTranslationChanged: (delta) => {
-                        root.x += delta.x
-                        root.y += delta.y
-                    }
-                }
 
                 Rectangle {
                     Layout.preferredWidth: 38
@@ -268,7 +268,7 @@ Window {
                                 height: 28
                                 radius: 6
                                 property bool hovered: false
-                                    color: expanded ? "#F4F0F9" : (hovered ? "#CCE5CC" : (index % 2 === 0 ? "#FCFDFF" : "#F8FAFC"))
+                                    color: expanded ? "#F4F0F9" : (hovered ? "#DDD6FE" : (index % 2 === 0 ? "#FCFDFF" : "#F8FAFC"))
                                 border.color: expanded ? "#7C3AED" : "#EEF2F6"
                                 border.width: 1
 

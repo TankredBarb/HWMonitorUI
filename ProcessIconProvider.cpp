@@ -55,7 +55,7 @@ QPixmap ProcessIconProvider::requestPixmap(const QString &id, QSize *size, const
     }
 
     if (SHGetFileInfoW((LPCWSTR)id.utf16(), FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(sfi),
-                       SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES | SHGFI_EXETYPE))
+                       SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES))
     {
         QImage img = QImage::fromHICON(sfi.hIcon);
         DestroyIcon(sfi.hIcon);

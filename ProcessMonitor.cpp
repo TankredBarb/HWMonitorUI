@@ -210,8 +210,16 @@ void ProcessMonitor::refreshProcessList()
         CloseHandle(hSnapshot);
         return;
     }
+    ULONGLONG currentIdleTime = FileTimeToULL(sysIdle);
     ULONGLONG currentSystemTime = FileTimeToULL(sysKernel) + FileTimeToULL(sysUser);
     ULONGLONG systemDelta = currentSystemTime - m_lastSystemTime;
+    
+    if (m_lastSystemTime > 0)
+    {
+        ULONGLONG idleDelta = currentIdleTime - m_lastIdleTime;
+        m_totalCpuUsage = (1.0 - (double)idleDelta / systemDelta) * 100.0;
+    }
+    m_lastIdleTime = currentIdleTime;
     
     QList<ProcessInfo> newProcesses;
     QMap<uint32_t, ProcessTimeInfo> newTimeMap;
