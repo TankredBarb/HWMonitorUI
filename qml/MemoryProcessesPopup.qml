@@ -14,7 +14,6 @@ Window {
 
     property int colSpacing: 6
     property int pidColWidth: 90
-    property int cpuColWidth: 85
     property int memoryColWidth: 110
 
     property string totalPercentage: {
@@ -218,7 +217,7 @@ Window {
 
                             property int processColWidth: Math.max(
                                 60,
-                                width - root.pidColWidth - root.memoryColWidth - root.cpuColWidth - root.colSpacing * 3
+                                width - root.pidColWidth - root.memoryColWidth - root.colSpacing * 2
                             )
 
                             Text {
@@ -232,7 +231,6 @@ Window {
                             }
                             Text { width: root.pidColWidth; text: "PID"; font.family: "Segoe UI"; font.pixelSize: 11; font.weight: Font.Bold; color: "#344054" }
                             Text { width: root.memoryColWidth; text: "Memory"; font.family: "Consolas"; font.pixelSize: 11; font.weight: Font.Bold; color: "#7C3AED" }
-                            Text { width: root.cpuColWidth; text: "CPU"; font.family: "Consolas"; font.pixelSize: 11; font.weight: Font.Bold; color: "#344054" }
                         }
                     }
 
@@ -281,7 +279,7 @@ Window {
 
                                     property int processColWidth: Math.max(
                                         60,
-                                        width - 16 - root.pidColWidth - root.memoryColWidth - root.cpuColWidth - root.colSpacing * 4
+                                        width - 16 - root.pidColWidth - root.memoryColWidth - root.colSpacing * 3
                                     )
                                     Image {
                                         width: 16
@@ -343,15 +341,6 @@ Window {
                                                 Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                             }
                                         }
-                                    }
-                                    Text {
-                                        text: Number(modelData.cpu || 0).toFixed(1) + "%"
-                                        width: root.cpuColWidth
-                                        font.family: "Consolas"
-                                        font.pixelSize: 11
-                                        color: "#344054"
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        elide: Text.ElideRight
                                     }
                                 }
 
@@ -417,7 +406,6 @@ Window {
 
                                             property int pidWidth: 90
                                             property int memoryWidth: 85
-                                            property int cpuWidth: 70
 
                                             Text {
                                                 width: parent.pidWidth
@@ -434,14 +422,6 @@ Window {
                                                 font.pixelSize: 10
                                                 font.weight: Font.Bold
                                                 color: "#7C3AED"
-                                                elide: Text.ElideRight
-                                            }
-                                            Text {
-                                                width: parent.cpuWidth
-                                                text: Number(modelData.cpu).toFixed(1)
-                                                font.family: "Consolas"
-                                                font.pixelSize: 10
-                                                color: "#475467"
                                                 elide: Text.ElideRight
                                             }
                                         }

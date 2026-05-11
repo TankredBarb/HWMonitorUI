@@ -7,6 +7,29 @@
 #include <tlhelp32.h>
 #include <psapi.h>
 
+#ifndef PROCESS_QUERY_LIMITED_INFORMATION
+#define PROCESS_QUERY_LIMITED_INFORMATION 0x1000
+#endif
+
+#ifndef ProcessVmCounters
+#define ProcessVmCounters 3
+#endif
+
+struct NtProcessVmCounters
+{
+    SIZE_T PeakVirtualSize;
+    SIZE_T VirtualSize;
+    ULONG PageFaultCount;
+    SIZE_T PeakWorkingSetSize;
+    SIZE_T WorkingSetSize;
+    SIZE_T QuotaPeakPagedPoolUsage;
+    SIZE_T QuotaPagedPoolUsage;
+    SIZE_T QuotaPeakNonPagedPoolUsage;
+    SIZE_T QuotaNonPagedPoolUsage;
+    SIZE_T PagefileUsage;
+    SIZE_T PeakPagefileUsage;
+};
+
 static ULONGLONG FileTimeToULL(const FILETIME& ft)
 {
     ULARGE_INTEGER ui;
@@ -115,7 +138,7 @@ QVariantList ProcessMonitor::getMemoryProcesses()
     });
 
     QVariantList list;
-    for (int i = 0; i < qMin(sorted.size(), 50); ++i)
+    for (int i = 0; i < sorted.size(); ++i)
     {
         const auto& p = sorted[i];
         QVariantMap map;
@@ -227,51 +250,75 @@ void ProcessMonitor::refreshProcessList()
     do
     {
         uint32_t pid = pe.th32ProcessID;
-        if (pid == 0) continue; // Idle process
+        if (pid == 0) continue;
 
-        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
-        if (hProcess)
+        double cpuUsage = 0.0, wsMb = 0, privMb = 0;
+        QString exePath;
+
+        // Limited access — works for elevated same-user processes (e.g. OCCT)
+        HANDLE hLimited = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (hLimited)
         {
             FILETIME createTime, exitTime, kernelTime, userTime;
-            if (GetProcessTimes(hProcess, &createTime, &exitTime, &kernelTime, &userTime))
+            if (GetProcessTimes(hLimited, &createTime, &exitTime, &kernelTime, &userTime))
             {
                 ULONGLONG currentProcessTime = FileTimeToULL(kernelTime) + FileTimeToULL(userTime);
-                
-                double cpuUsage = 0.0;
                 if (m_processTimeMap.contains(pid) && systemDelta > 0)
                 {
                     ULONGLONG processDelta = currentProcessTime - m_processTimeMap[pid].lastTime;
                     cpuUsage = (100.0 * processDelta) / systemDelta;
                 }
-                
                 newTimeMap[pid] = {currentProcessTime, currentSystemTime};
-
-                PROCESS_MEMORY_COUNTERS_EX pmc;
-                double wsMb = 0, privMb = 0;
-                if (GetProcessMemoryInfo(hProcess, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
-                {
-                    wsMb = pmc.WorkingSetSize / (1024.0 * 1024.0);
-                    privMb = pmc.PrivateUsage / (1024.0 * 1024.0);
-                }
-
-                wchar_t exePathBuf[MAX_PATH];
-                DWORD exePathLen = MAX_PATH;
-                QString exePath;
-                if (QueryFullProcessImageNameW(hProcess, 0, exePathBuf, &exePathLen))
-                    exePath = QString::fromWCharArray(exePathBuf, exePathLen);
-
-                ProcessInfo info;
-                info.pid = pid;
-                info.name = QString::fromWCharArray(pe.szExeFile);
-                info.exePath = exePath;
-                info.cpuUsage = cpuUsage;
-                info.workingSetMb = wsMb;
-                info.privateBytesMb = privMb;
-                info.multiPids = { {pid, cpuUsage, wsMb, privMb} };
-                newProcesses.append(info);
             }
-            CloseHandle(hProcess);
+
+            // Exe path via limited handle (available with PROCESS_QUERY_LIMITED_INFORMATION on Vista+)
+            wchar_t exePathBuf[MAX_PATH];
+            DWORD exePathLen = MAX_PATH;
+            if (QueryFullProcessImageNameW(hLimited, 0, exePathBuf, &exePathLen))
+                exePath = QString::fromWCharArray(exePathBuf, exePathLen);
         }
+
+        // Full access for memory info — may fail for elevated processes
+        HANDLE hFull = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+        if (hFull)
+        {
+            PROCESS_MEMORY_COUNTERS_EX pmc;
+            if (GetProcessMemoryInfo(hFull, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc)))
+            {
+                wsMb = pmc.WorkingSetSize / (1024.0 * 1024.0);
+                privMb = pmc.PrivateUsage / (1024.0 * 1024.0);
+            }
+            CloseHandle(hFull);
+        }
+
+        // Fallback for elevated processes: NtQueryInformationProcess via limited handle
+        if (hLimited && wsMb == 0.0)
+        {
+            typedef NTSTATUS (NTAPI *NtQipFunc)(HANDLE, ULONG, PVOID, ULONG, PULONG);
+            auto ntQip = (NtQipFunc)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtQueryInformationProcess");
+            if (ntQip)
+            {
+                NtProcessVmCounters pvc;
+                if (ntQip(hLimited, ProcessVmCounters, &pvc, sizeof(pvc), nullptr) >= 0)
+                {
+                    wsMb = pvc.WorkingSetSize / (1024.0 * 1024.0);
+                    privMb = pvc.PagefileUsage / (1024.0 * 1024.0);
+                }
+            }
+        }
+
+        if (hLimited)
+            CloseHandle(hLimited);
+
+        ProcessInfo info;
+        info.pid = pid;
+        info.name = QString::fromWCharArray(pe.szExeFile);
+        info.exePath = exePath;
+        info.cpuUsage = cpuUsage;
+        info.workingSetMb = wsMb;
+        info.privateBytesMb = privMb;
+        info.multiPids = { {pid, cpuUsage, wsMb, privMb} };
+        newProcesses.append(info);
     } while (Process32NextW(hSnapshot, &pe));
 
     CloseHandle(hSnapshot);

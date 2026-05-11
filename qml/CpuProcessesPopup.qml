@@ -124,6 +124,16 @@ Window {
                         color: "#667085"
                         elide: Text.ElideRight
                     }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Processes with <0.1% CPU are hidden beyond the top 15"
+                        font.family: "Segoe UI"
+                        font.pixelSize: 10
+                        font.weight: Font.Normal
+                        color: "#98A2B3"
+                        elide: Text.ElideRight
+                    }
                 }
 
                 Button {
